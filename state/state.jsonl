@@ -5871,10 +5871,10 @@
 {"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-10-31T12:25:59.946678+00:00", "name": "Maeil-Stocks", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-10-31T12:26:12.878102+00:00", "name": "MarketWatch-Top", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-10-31T12:26:19.498698+00:00", "name": "Politico", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 3, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-CryptoCurrency", "skip_until_cycle": 22}
-{"_t": "source_state", "fails": 3, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-politics", "skip_until_cycle": 22}
-{"_t": "source_state", "fails": 3, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-stocks", "skip_until_cycle": 22}
-{"_t": "source_state", "fails": 3, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-technology", "skip_until_cycle": 22}
+{"_t": "source_state", "fails": 0, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-CryptoCurrency", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-politics", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-stocks", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-technology", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-10-31T12:26:06.385368+00:00", "name": "TechCrunch", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-10-31T12:26:08.001783+00:00", "name": "TheVerge", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-10-31T12:25:43.642466+00:00", "name": "Yonhap-All", "skip_until_cycle": 0}
