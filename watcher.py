@@ -80,6 +80,12 @@ def jaccard(a, b):
 
 
 _kw_cache = {}
+# Longest first so "에서" is not left behind after a shorter particle.
+_PARTICLES = ("으로부터", "에서부터", "이라고", "이라는", "까지", "부터", "으로", "에서", "에게", "한테",
+              "이라", "라는", "은", "는", "이", "가", "을", "를", "의", "에", "와", "과", "도", "만", "로", "께", "랑")
+# 2-char keywords may continue a compound ("국회의원", "한미일") but not a different word.
+_PREFIX_BLOCK = {"유가": ("족", "증권"), "장애": ("인",), "상장": ("학",), "금리": ("단",)}
+_NOISE_RE = [re.compile(p, re.I) for p in CFG.get("filters", {}).get("noise_patterns", [])]
 
 
 def kw_regex(kw):
@@ -92,12 +98,80 @@ def kw_regex(kw):
     return _kw_cache[kw]
 
 
+# "이유가" ends with the letters 유가 but is not oil. "고유가"/"국제유가" are.
+_SUFFIX_PRE_BLOCK = {"유가": {"이"}}
+
+
+def _strip_hangul_edges(token):
+    return re.sub(r"^[^\uac00-\ud7a3]+|[^\uac00-\ud7a3]+$", "", token)
+
+
+def _prefix_ok(kw, pre):
+    if not pre or len(kw) >= 3:
+        return True
+    return pre not in _SUFFIX_PRE_BLOCK.get(kw, ())
+
+
+def _rest_ok(kw, rest):
+    if rest == "":
+        return True
+    stripped = rest
+    changed = True
+    while changed and stripped:
+        changed = False
+        for p in _PARTICLES:
+            if stripped == p or (stripped.endswith(p) and len(stripped) > len(p)):
+                stripped = stripped[:-len(p)]
+                changed = True
+                break
+    if stripped == "":
+        return True
+    if len(kw) >= 3:
+        return True
+    return len(stripped) <= 2 and not stripped.startswith(_PREFIX_BLOCK.get(kw, ()))
+
+
+def _match_hangul_token(kw, token):
+    if not token:
+        return False
+    if token == kw:
+        return True
+    if token.endswith(kw) and _prefix_ok(kw, token[:-len(kw)]):
+        return True
+    for p in _PARTICLES:  # longest first
+        if token.endswith(p) and len(token) - len(p) >= 2:
+            return _match_hangul_token(kw, token[:-len(p)])
+    if token.startswith(kw) and _rest_ok(kw, token[len(kw):]):
+        return True
+    return False
+
+
+def hangul_keyword_in_text(kw, text):
+    """Match a Hangul keyword on words, not as a raw substring.
+
+    Substring search treated 유가족 / 이유가 / 액화석유가스 as 유가(oil) and
+    장학생 as 상장. A keyword hits as a whole word, a compound suffix
+    (국제유가), or a short compound prefix (국회의원, 한미일) — not inside
+    an unrelated word.
+    """
+    spaced = re.sub(r"[^0-9A-Za-z\uac00-\ud7a3]+", " ", text)
+    for raw in spaced.split():
+        if _match_hangul_token(kw, _strip_hangul_edges(raw)):
+            return True
+    return False
+
+
+def keyword_in_text(kw, text):
+    if re.fullmatch(r"[\uac00-\ud7a3]+", kw):
+        return hangul_keyword_in_text(kw, text)
+    return kw_regex(kw).search(text) is not None
+
+
 def kw_score(text, kws):
-    hits, s = [], 0.0
-    for kw, w in kws.items():
-        if kw_regex(kw).search(text):
-            hits.append(kw); s += w
-    return s, hits
+    hits = [kw for kw in kws if keyword_in_text(kw, text)]
+    # "비트코인" should not also score the shorter "코인"; "OpenAI" should not also score "AI".
+    hits = [h for h in hits if not any(h != other and h.lower() in other.lower() for other in hits)]
+    return sum(kws[h] for h in hits), hits
 
 
 def parse_date(s):
@@ -231,6 +305,161 @@ def classify(title, fixed_topic):
     return "other", (0.0, [])
 
 
+def noise_title(title):
+    return any(rx.search(title) for rx in _NOISE_RE)
+
+
+def strong_hits(topic, hits):
+    weak = set(CFG.get("filters", {}).get("weak_keywords", {}).get(topic, []))
+    return [h for h in hits if h not in weak]
+
+
+def breaking_in_title(title):
+    return any(keyword_in_text(k, title) for k in CFG["breaking_keywords"])
+
+
+def politics_in_scope(hits, title):
+    """한미 정치만 남긴다. '대통령' 단독은 한국 기사에서만 인정하고, 제3국 정치는 버린다."""
+    anchors = set(CFG.get("filters", {}).get("politics_anchors", []))
+    if any(h in anchors for h in hits):
+        return True
+    if "대통령" in hits and HANGUL.search(title):
+        foreign = CFG.get("filters", {}).get("foreign_markers", [])
+        if not any(m in title for m in foreign):
+            return True
+        if re.search(r"순방|방한|정상회담|이재명|李|여야|국힘|민주", title):
+            return True
+    return False
+
+
+def passes_relevance(topic, kw, title):
+    """Fixed-topic feeds used to keep every item. Require a real on-beat keyword."""
+    _score, hits = kw
+    if topic == "other":
+        return False
+    if topic == "politics":
+        if not hits or not politics_in_scope(hits, title):
+            return False
+        # A lone "Trump" or "북한" match is how weather, features, and trivia get in.
+        # The Korean president's own remarks are the exception: the beat is that office.
+        if len(hits) >= 2 or breaking_in_title(title):
+            return True
+        if any(h in {"탄핵", "impeach", "shutdown", "셧다운", "이재명", "특검", "indict"} for h in hits):
+            return True
+        return "대통령" in hits and HANGUL.search(title)
+    if strong_hits(topic, hits):
+        return True
+    # [속보] + a weak keyword still keeps a real incident (airport outage, etc.).
+    return bool(hits) and breaking_in_title(title)
+
+
+def _signal_in_title(pattern, title):
+    if re.fullmatch(r"[\uac00-\ud7a3]+", pattern):
+        return keyword_in_text(pattern, title)
+    return re.search(r"(?<![A-Za-z0-9])" + re.escape(pattern) + r"(?:s|es|ers|er|ed|ing)?(?![A-Za-z0-9])",
+                      title, re.I) is not None
+
+
+def salient_tokens(title):
+    signals = CFG.get("filters", {}).get("dedup", {}).get("signals", {})
+    found = set()
+    for token, patterns in signals.items():
+        if any(_signal_in_title(p, title) for p in patterns):
+            found.add(token)
+    # "하락 마감" / "dives" is the same session as "급락" when the index or Intel is named.
+    move = bool(re.search(r"하락|급락|폭락|추락|출렁|털썩|사이드카|증발|쇼크|충격|뚝|↓", title)) or bool(
+        re.search(r"(?<![A-Za-z])(?:plunge|crash|wipe|worst|slides?|dives?|tumbles?|slumps?|tanks?|drop)(?![A-Za-z])",
+                  title, re.I))
+    if move and found & {"nasdaq", "intel"}:
+        found.add("selloff")
+        found.add("ustech")
+    elif "selloff" in found and found & {"nasdaq", "intel"}:
+        found.add("ustech")
+    if move and found & {"kospi", "kosdaq"}:
+        found.add("selloff")
+        found.add("krindex")
+    return found
+
+
+def find_cluster(recent, lang, toks, topic, salient):
+    """Return an existing item id to merge into, or None.
+
+    Title Jaccard misses paraphrases ('돼지 눈' vs '국민은 전부 돼지'). Those
+    share salient entities. A new fact token (보상, 사망, 피소) starts a new row
+    so a follow-up is not swallowed by the first headline.
+    """
+    dedup = CFG.get("filters", {}).get("dedup", {})
+    if not dedup:
+        return None
+    win = timedelta(hours=CFG["cluster_window_hours"])
+    t_thr = CFG["title_similarity"]["bigram_jaccard" if lang == "ko" else "word_jaccard"]
+    soft = dedup.get("title_jaccard_with_shared", 0.38)
+    min_shared = dedup.get("min_shared_salient", 2)
+    sal_need = dedup.get("salient_jaccard", 0.5)
+    new_facts = set(dedup.get("new_fact_tokens", []))
+    # Subset merge must name a real entity. {trump} alone must not swallow every Trump story.
+    # People (trump, 대통령) are in many unrelated stories, so they cannot be the reason
+    # a narrower headline is swallowed by a broader one.
+    subset_anchors = {"binance", "ustech", "nasdaq", "intel", "kospi", "kosdaq",
+                      "altman", "samsung", "sk", "openai", "oil", "anthropic",
+                      "tether", "coinbase", "upbit", "polymarket", "pig", "multiculture",
+                      "basicincome", "tax", "denuclear", "diplomat"}
+    best, bj = None, 0.0
+    for rid, rlang, rtoks, rfs, rtopic, rsal in recent:
+        if now() - rfs > win:
+            continue
+        same_topic = rtopic == topic
+        # 보상 / 사망 / 피소 / ETF flows are a different development in either direction.
+        # A later hack headline must not fold into the compensation row, and a
+        # compensation headline must not fold into the original hack row.
+        if (salient ^ rsal) & new_facts:
+            continue
+        # A Trump reaction ("모른다", "주시") is not the hack headline.
+        # 이재명 / 대통령 are spelled too many ways to use the same gate.
+        if (salient ^ rsal) & {"trump"}:
+            continue
+        core_new, core_old = salient - new_facts, rsal - new_facts
+        ents = subset_anchors | {"btc", "eth", "nk", "krindex"}
+        # Binance's compensation and Polymarket's compensation are different incidents.
+        if (core_new & ents) and (core_old & ents) and not (core_new & ents & core_old):
+            continue
+        shared = core_new & core_old
+        union = core_new | core_old
+        sj = (len(shared) / len(union)) if union else 0.0
+        smaller, larger = (core_new, core_old) if len(core_new) <= len(core_old) else (core_old, core_new)
+        named_subset = len(smaller) >= 2 and smaller <= larger and bool(smaller & subset_anchors)
+        # "A $6.4 billion hack" with no exchange name still belongs to the Binance cluster.
+        anon_hack = smaller <= {"hack", "btc", "eth"} and "binance" in larger and "hack" in smaller
+        subset_hit = named_subset or anon_hack
+        # Two Binance-hack headlines are one incident even when one also names
+        # Bitcoin or North Korea and the salient Jaccard falls under 0.5.
+        # Altman-Samsung and Altman-SK are each one meeting. Denuclearization
+        # headlines from the same day are one announcement.
+        same_incident = (
+            {"binance", "hack"} <= shared
+            or ("altman" in shared and bool(shared & {"samsung", "sk"}))
+            or "denuclear" in shared
+        )
+        # hack/vasset/selloff alone are too common to glue unrelated stories together.
+        generic = {"hack", "vasset", "selloff"}
+        salient_hit = subset_hit or same_incident or (
+            len(shared) >= min_shared and sj >= sal_need and bool(shared - generic)
+        )
+        if not same_topic:
+            # Same event on two beats: the Nasdaq drop on the tech feed and the markets feed,
+            # or an unnamed heist headline filed under politics.
+            cross = len(shared) >= 3 or bool(shared & {"nasdaq", "intel", "ustech", "krindex", "binance", "altman"})
+            if not cross:
+                continue
+        j = jaccard(toks, rtoks) if rlang == lang else 0.0
+        title_hit = same_topic and rlang == lang and (j >= t_thr or (j >= soft and len(shared) >= 1))
+        if salient_hit or title_hit:
+            score = len(shared) + (1.5 if "binance" in rsal and "hack" in salient else 0) + sj
+            if score > bj:
+                best, bj = rid, score
+    return best
+
+
 def score_item(row, src_weight, kw, eng, cluster_n):
     reasons = [f"src{src_weight:g}"]
     s = src_weight
@@ -259,6 +488,8 @@ def score_item(row, src_weight, kw, eng, cluster_n):
         s += cb; reasons.append(f"cluster{cluster_n}+{cb:g}")
     if age_h <= 1:
         s += 1; reasons.append("fresh+1")
+    elif age_h > 18:
+        s -= 3; reasons.append("old-3")
     elif age_h > 6:
         s -= 2; reasons.append("old-2")
     if row["topic"] == "other":
@@ -298,10 +529,13 @@ def item_record(con, iid, event):
     return d
 
 
-def maybe_fire(con, iid, age_h):
+def maybe_fire(con, iid, age_h, kw_points=0.0, engagement=None):
     r = con.execute("SELECT score,topic,fired FROM items WHERE id=?", (iid,)).fetchone()
     score, topic, fired = r
-    is_break = score >= CFG["breaking_threshold"] and age_h <= CFG["breaking_max_age_hours"] and topic != "other"
+    move = abs((engagement or {}).get("move_pct") or 0)
+    price_break = move >= CFG["crypto_price"]["breaking_move_pct"]
+    kw_ok = kw_points >= CFG.get("breaking_min_keyword_score", 1.0) or price_break
+    is_break = score >= CFG["breaking_threshold"] and age_h <= CFG["breaking_max_age_hours"] and topic != "other" and kw_ok
     if is_break and not fired:
         con.execute("UPDATE items SET queue='breaking', fired=1 WHERE id=?", (iid,))
         rec = item_record(con, iid, "breaking")
@@ -317,10 +551,12 @@ def maybe_fire(con, iid, age_h):
 # ---------------------------------------------------------------- main cycle
 def process(con, src, items, recent, stats):
     max_age = timedelta(hours=CFG["max_item_age_hours"])
-    win = timedelta(hours=CFG["cluster_window_hours"])
     for it in items:
         title = clean_title(it["title"])
         if not title:
+            continue
+        if noise_title(title):
+            stats["noise"] += 1
             continue
         pub = it["published"] or now()
         if pub > now() + timedelta(minutes=10):
@@ -331,21 +567,16 @@ def process(con, src, items, recent, stats):
         un = it["url"] if it["url"].startswith("signal://") else norm_url(it["url"])
         lang, toks = title_tokens(title)
         topic, kw = classify(title, src["topic"])
-        if src["type"] == "hn" and topic == "other":
-            topic, kw = "ai_tech", (0.0, [])
+        if not passes_relevance(topic, kw, title):
+            stats["offtopic"] += 1
+            continue
+        salient = salient_tokens(title)
         ts = now().isoformat()
         ex = con.execute("SELECT item_id FROM aliases WHERE url_norm=?", (un,)).fetchone()
         target = ex[0] if ex else None
         if target is None:
-            thr = CFG["title_similarity"]["bigram_jaccard" if lang == "ko" else "word_jaccard"]
-            best, bj = None, 0.0
-            for rid, rlang, rtoks, rfs in recent:
-                if rlang == lang and now() - rfs <= win:
-                    j = jaccard(toks, rtoks)
-                    if j > bj:
-                        best, bj = rid, j
-            if best is not None and bj >= thr:
-                target = best
+            target = find_cluster(recent, lang, toks, topic, salient)
+            if target is not None:
                 con.execute("INSERT OR IGNORE INTO aliases VALUES(?,?)", (un, target))
         if target is not None:
             # existing story: merge source into cluster, refresh engagement, rescore
@@ -368,7 +599,7 @@ def process(con, src, items, recent, stats):
             sc, reason, age_h = score_item(r, w, kw2, eng, len(cs))
             con.execute("UPDATE items SET cluster_sources=?, engagement=?, score=?, reason=?, last_update=? WHERE id=?",
                         (json.dumps(sorted(cs), ensure_ascii=False), json.dumps(eng) if eng else None, sc, reason, ts, target))
-            if maybe_fire(con, target, age_h):
+            if maybe_fire(con, target, age_h, kw2[0], eng):
                 stats["breaking"] += 1
                 append_jsonl(item_record(con, target, "upgraded_breaking"))
             continue
@@ -383,9 +614,9 @@ def process(con, src, items, recent, stats):
                            json.dumps(cs, ensure_ascii=False), sc, reason))
         iid = cur.lastrowid
         con.execute("INSERT OR IGNORE INTO aliases VALUES(?,?)", (un, iid))
-        recent.append((iid, lang, toks, now()))
+        recent.append((iid, lang, toks, now(), topic, salient))
         stats["new"] += 1
-        fired = maybe_fire(con, iid, age_h)
+        fired = maybe_fire(con, iid, age_h, kw[0], it["engagement"])
         if fired:
             stats["breaking"] += 1
         append_jsonl(item_record(con, iid, "new"))
@@ -398,16 +629,16 @@ def run_cycle():
     con.commit()
     log(f"=== cycle {cyc} start ===")
     since = (now() - timedelta(hours=CFG["cluster_window_hours"])).isoformat()
-    recent = [(r[0], r[1], set(json.loads(r[2])), datetime.fromisoformat(r[3]))
-              for r in con.execute("SELECT id,lang,tokens,first_seen FROM items WHERE first_seen>=?", (since,))]
-    total = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0}
+    recent = [(r[0], r[1], set(json.loads(r[2])), datetime.fromisoformat(r[3]), r[4], salient_tokens(r[5]))
+              for r in con.execute("SELECT id,lang,tokens,first_seen,topic,title FROM items WHERE first_seen>=?", (since,))]
+    total = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
     ok, failed = [], []
     for src in CFG["sources"]:
         st = con.execute("SELECT fails, skip_until_cycle FROM source_state WHERE name=?", (src["name"],)).fetchone()
         if st and st[1] and cyc < st[1]:
             log(f"  skip {src['name']} (backoff until cycle {st[1]})")
             continue
-        stats = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0}
+        stats = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
         try:
             if src["type"] == "binance":
                 items = fetch_binance(src)
