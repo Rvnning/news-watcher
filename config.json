@@ -6,7 +6,7 @@
   "max_item_age_hours": 24,
   "breaking_max_age_hours": 3,
   "breaking_threshold": 9.0,
-  "cluster_window_hours": 12,
+  "cluster_window_hours": 24,
   "title_similarity": {"word_jaccard": 0.5, "bigram_jaccard": 0.45},
   "source_failure_backoff_cycles": 4,
 
@@ -17,6 +17,7 @@
         "인공지능": 1, "AI": 1, "생성형": 1, "챗GPT": 1.5, "ChatGPT": 1.5, "오픈AI": 1.5, "OpenAI": 1.5, "엔비디아": 1.5, "Nvidia": 1.5,
         "반도체": 1, "HBM": 1.5, "삼성전자": 1, "SK하이닉스": 1, "구글": 0.5, "Google": 0.5, "애플": 0.5, "Apple": 0.5, "마이크로소프트": 0.5, "Microsoft": 0.5,
         "Anthropic": 1.5, "앤트로픽": 1.5, "Claude": 1, "Gemini": 1, "제미나이": 1, "xAI": 1.5, "Grok": 1.5, "Meta": 0.5, "메타": 0.5, "Tesla": 0.5, "테슬라": 0.5,
+        "Altman": 1.5, "올트먼": 1.5, "Intel": 1.5, "인텔": 1.5,
         "LLM": 1, "GPU": 1, "data center": 1, "데이터센터": 1, "robot": 0.5, "로봇": 0.5, "chip": 1, "semiconductor": 1, "TSMC": 1,
         "launch": 0.5, "출시": 0.5, "공개": 0.5, "acquire": 1, "인수": 1, "hack": 1, "해킹": 1, "breach": 1, "유출": 1, "outage": 1, "장애": 1, "backdoor": 1.5
       }
@@ -27,7 +28,8 @@
         "코스피": 1.5, "코스닥": 1, "KOSPI": 1.5, "증시": 1, "주가": 1, "급등": 1.5, "급락": 1.5, "폭락": 2, "폭등": 2, "환율": 1.5, "원달러": 1.5, "금리": 1.5,
         "한국은행": 1.5, "기준금리": 2, "연준": 1.5, "Fed": 1.5, "FOMC": 2, "파월": 1.5, "Powell": 1.5, "CPI": 1.5, "물가": 1, "inflation": 1, "고용": 1, "jobs report": 1.5,
         "S&P": 1, "Nasdaq": 1, "나스닥": 1, "Dow": 1, "다우": 1, "stocks": 0.5, "stock market": 1, "selloff": 1.5, "rally": 1, "plunge": 1.5, "surge": 1, "soar": 1, "tumble": 1.5,
-        "recession": 1.5, "경기침체": 1.5, "tariff": 1.5, "관세": 1.5, "earnings": 1, "실적": 1, "어닝": 1, "IPO": 1, "상장": 0.5, "유가": 1, "oil": 0.5, "treasury": 1, "국채": 1
+        "recession": 1.5, "경기침체": 1.5, "tariff": 1.5, "관세": 1.5, "earnings": 1, "실적": 1, "어닝": 1, "IPO": 1, "상장": 0.5, "유가": 1, "oil": 0.5, "treasury": 1, "국채": 1,
+        "Intel": 1.5, "인텔": 1.5
       }
     },
     "crypto": {
@@ -35,7 +37,8 @@
       "keywords": {
         "비트코인": 2, "Bitcoin": 2, "BTC": 1.5, "이더리움": 1.5, "Ethereum": 1.5, "ETH": 1, "리플": 1.5, "XRP": 1.5, "솔라나": 1, "Solana": 1, "가상자산": 1.5, "암호화폐": 1.5, "코인": 1,
         "crypto": 1.5, "stablecoin": 1, "스테이블코인": 1, "ETF": 1, "SEC": 1, "Binance": 1, "바이낸스": 1, "업비트": 1, "빗썸": 1, "Coinbase": 1, "코인베이스": 1,
-        "hack": 1.5, "exploit": 1.5, "해킹": 1.5, "liquidation": 1.5, "청산": 1.5, "all-time high": 2, "ATH": 1.5, "사상 최고": 2, "crash": 1.5, "폭락": 1.5, "급등": 1, "MicroStrategy": 1, "Strategy": 0.5
+        "hack": 1.5, "exploit": 1.5, "해킹": 1.5, "liquidation": 1.5, "청산": 1.5, "all-time high": 2, "ATH": 1.5, "사상 최고": 2, "crash": 1.5, "폭락": 1.5, "급등": 1,
+        "MicroStrategy": 1.5, "MSTR": 1.5, "Saylor": 1.5, "세일러": 1.5, "Tether": 1.5, "테더": 1.5
       }
     },
     "politics": {
@@ -43,12 +46,92 @@
       "keywords": {
         "대통령": 1, "이재명": 1.5, "국회": 1, "여당": 1, "야당": 1, "더불어민주당": 1, "민주당": 1, "국민의힘": 1, "탄핵": 2, "특검": 1.5, "검찰": 1, "대법원": 1, "헌법재판소": 1.5, "선거": 1, "지방선거": 1.5,
         "북한": 1.5, "김정은": 1.5, "미사일": 1.5, "한미": 1.5, "정상회담": 1.5, "외교": 0.5, "Trump": 1.5, "트럼프": 1.5, "White House": 1, "백악관": 1, "Congress": 1, "Senate": 1, "House": 0.5,
-        "Supreme Court": 1.5, "election": 1, "impeach": 2, "shutdown": 1.5, "셧다운": 1.5, "indict": 1.5, "executive order": 1, "행정명령": 1, "Democrats": 1, "Republicans": 1, "GOP": 1, "Vance": 1, "밴스": 1
+        "Supreme Court": 1.5, "election": 1, "impeach": 2, "shutdown": 1.5, "셧다운": 1.5, "indict": 1.5, "executive order": 1, "행정명령": 1, "Democrats": 1, "Republicans": 1, "GOP": 1, "Vance": 1.5, "밴스": 1.5,
+        "midterm": 1.5, "midterms": 1.5, "중간선거": 1.5
       }
     }
   },
   "breaking_keywords": {"속보": 3, "[속보]": 3, "긴급": 2, "1보": 2, "BREAKING": 3, "Breaking": 3, "just in": 2, "JUST IN": 2, "urgent": 1.5},
   "topic_min_keyword_score": 1.0,
+  "breaking_min_keyword_score": 1.0,
+
+  "filters": {
+    "weak_keywords": {
+      "ai_tech": ["AI", "인공지능", "로봇", "robot", "구글", "Google", "애플", "Apple", "메타", "Meta", "Tesla", "테슬라", "공개", "출시", "launch", "장애", "chip"],
+      "markets": ["주가", "급등", "급락", "폭락", "폭등", "stocks", "surge", "plunge", "tumble", "soar", "rally", "selloff", "실적", "earnings", "어닝", "상장", "고용", "물가", "inflation"],
+      "crypto": ["코인", "crypto", "crash", "폭락", "급등", "ETF"],
+      "politics": ["대통령", "국회", "외교", "미사일", "선거", "election", "House"]
+    },
+    "politics_anchors": ["이재명", "트럼프", "Trump", "북한", "김정은", "한미", "국민의힘", "민주당", "더불어민주당", "여당", "야당", "탄핵", "특검", "헌법재판소", "백악관", "White House", "Congress", "Senate", "impeach", "shutdown", "셧다운", "GOP", "Democrats", "Republicans", "Vance", "밴스", "행정명령", "executive order", "대법원", "검찰", "지방선거", "중간선거", "midterm", "midterms", "indict", "정상회담", "Supreme Court"],
+    "foreign_markers": ["후티", "아덴", "예멘", "폴란드", "우크라이나", "젤렌스키", "콜롬비아", "베네수엘라", "시진핑", "독일", "메르켈", "튀르키예"],
+    "noise_patterns": [
+      "\\[부고\\]", "\\[부음\\]", "\\[인사\\]", "\\[게시판\\]", "\\[포토\\]", "\\[화보\\]", "\\[시승", "\\[강좌\\]",
+      "\\[기자수첩\\]", "\\[사설\\]", "\\[칼럼\\]", "박스오피스", "자기소개서", "골프대회",
+      "날씨", "로또", "운세", "외국환시세", "이 시각 헤드라인", "뉴스룸 다시보기", "다시보기",
+      "청약", "\\[MAI부동산\\]", "㎡[^\\n]{0,30}신고가", "신고가[^\\n]{0,40}㎡",
+      "거래대금", "김프", "프리미엄", "공포·탐욕", "공포.탐욕", "price prediction", "price forecast",
+      "here's why i", "heres why i", "to be a millionaire", "crypto terms", "exchanges explained",
+      "cheesecake factory", "announces \\$[0-9.]+m raised", "next target", "price range",
+      "왜 하락", "금요일 클립", "풀영상", "추모", "\\[주간", "시황\\]", "\\| Season",
+      "경제본색", "금주의 관심인물", "오늘의 국회일정", "오늘의 북한", "감사패", "기후 한 편",
+      "공시하는 상장사", "대통령님"
+    ],
+    "dedup": {
+      "salient_jaccard": 0.5,
+      "min_shared_salient": 2,
+      "title_jaccard_with_shared": 0.38,
+      "new_fact_tokens": ["compensation", "death", "lawsuit", "etf", "annual"],
+      "signals": {
+        "btc": ["bitcoin", "비트코인", "btc"],
+        "eth": ["ethereum", "이더리움"],
+        "xrp": ["리플", "xrp"],
+        "sol": ["solana", "솔라나"],
+        "binance": ["binance", "바이낸스", "바이넨스"],
+        "hack": ["해킹", "해커", "탈취", "털렸", "털린", "털어", "hack", "heist", "exploit", "steal", "stole", "stolen", "theft", "breach", "security issue"],
+        "openai": ["openai", "오픈ai", "chatgpt", "챗gpt"],
+        "altman": ["altman", "올트먼"],
+        "nvidia": ["nvidia", "엔비디아"],
+        "samsung": ["삼성전자", "삼성"],
+        "sk": ["sk하이닉스", "최태원", "sk그룹"],
+        "nasdaq": ["nasdaq", "나스닥"],
+        "kospi": ["kospi", "코스피"],
+        "kosdaq": ["kosdaq", "코스닥"],
+        "intel": ["intel", "인텔"],
+        "apple": ["애플", "apple"],
+        "fed": ["연준", "fomc", "파월", "powell", "fed"],
+        "bok": ["한국은행"],
+        "trump": ["trump", "트럼프"],
+        "nk": ["북한", "김정은", "北"],
+        "annual": ["89%", "90% 육박", "90%육박"],
+        "lee": ["이재명"],
+        "president": ["대통령"],
+        "multiculture": ["다문화"],
+        "pig": ["돼지"],
+        "basicincome": ["기본소득", "농어촌"],
+        "trip": ["순방"],
+        "denuclear": ["비핵화"],
+        "tax": ["과세"],
+        "etf": ["etf"],
+        "compensation": ["보상", "전액"],
+        "death": ["사망"],
+        "lawsuit": ["피소", "소송"],
+        "rate": ["기준금리", "금리"],
+        "oil": ["국제유가", "고유가", "유가", "oil", "brent", "crude"],
+        "selloff": ["급락", "폭락", "selloff", "sell-off", "plunge", "crash"],
+        "rally": ["rally", "rallies", "유세"],
+        "polymarket": ["polymarket", "폴리마켓"],
+        "vasset": ["가상자산", "암호화폐"],
+        "funding": ["자금조달", "투자유치"],
+        "tether": ["tether", "테더"],
+        "coinbase": ["coinbase", "코인베이스"],
+        "upbit": ["업비트"],
+        "fiu": ["fiu", "금융정보분석원", "미신고"],
+        "anthropic": ["anthropic", "앤트로픽"],
+        "datacenter": ["데이터센터", "data center"],
+        "hbm": ["hbm"]
+      }
+    }
+  },
 
   "crypto_price": {
     "symbols": {"BTCUSDT": "BTC", "ETHUSDT": "ETH", "XRPUSDT": "XRP", "SOLUSDT": "SOL"},
