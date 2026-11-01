@@ -1,42 +1,339 @@
 name: news-watch
 on:
   schedule:
+    # GitHub often starts this late (hours, not minutes). The job does not
+    # depend on every tick: one run stays up for 5.5h and polls each slot itself.
     - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 permissions:
   contents: write
+# One writer per ref. A newer run (the next delayed cron, or a manual dispatch
+# on the same branch) cancels this one. The script treats that as a handoff:
+# it will not start a second push, and a push already in flight is a single
+# atomic ref update. See the loop step for the overlap rules.
 concurrency:
-  group: news-watch
-  cancel-in-progress: false
+  group: news-watch-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 6h is the hosted-runner cap. 350 leaves room for the last cycle to
+    # finish after the loop's own 5.5h deadline. The job exits on its own
+    # before this; the limit is only a backstop.
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Enough history to rebase a handoff commit. Deepened on retry.
+          fetch-depth: 50
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Load state
-        run: python3 state.py load
-      - name: Run watcher
+          # watcher.py / state.py are stdlib only, so there is nothing to
+          # pip install. Setup runs once per job, outside the poll loop.
+      - name: Watch every 15 minutes until handoff
         env:
           BREAK_LOG: state/breaking.log
-        run: timeout 480 python3 watcher.py
-      - name: Save state
-        if: always()
-        run: python3 state.py dump
-      - name: Commit state
-        if: always()
+          # WEBHOOK_URL is intentionally unset. fire_webhook() stays a no-op.
+        shell: bash
         run: |
+          set -euo pipefail
+
+          # 5.5h. Hard-capped so a stray env var cannot run into the job killer.
+          MAX_SECONDS="${WATCH_MAX_SECONDS:-19800}"
+          if [ "$MAX_SECONDS" -gt 19800 ]; then MAX_SECONDS=19800; fi
+          # Long enough that a cancelled predecessor has either finished its
+          # push or been SIGKILL'd (runner cancel grace is ~7.5s).
+          HANDOFF="${WATCH_HANDOFF_SECONDS:-25}"
+          if [ "$HANDOFF" -gt 60 ]; then HANDOFF=60; fi
+          if [ "$HANDOFF" -lt 0 ]; then HANDOFF=0; fi
+
+          BRANCH="${GITHUB_REF_NAME:-}"
+          if [ -z "$BRANCH" ] || [ "$BRANCH" = "HEAD" ]; then
+            BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+          fi
+          if [ "$BRANCH" = "HEAD" ]; then
+            echo "refusing to run on a detached HEAD" >&2
+            exit 1
+          fi
+
+          DEADLINE=$(( $(date +%s) + MAX_SECONDS ))
+          stop_requested=0
+          in_critical=0
+          child_pid=""
+
+          # Kill pid and its children. timeout(1) is the direct child of a watch
+          # cycle; signalling only timeout can leave watcher.py running.
+          kill_tree() {
+            local pid=$1 sig=$2 kids k
+            kids=$(ps -o pid= --ppid "$pid" 2>/dev/null || true)
+            for k in $kids; do
+              kill_tree "$k" "$sig"
+            done
+            kill -"$sig" "$pid" 2>/dev/null || true
+          }
+
+          on_signal() {
+            stop_requested=1
+            # A push already in the critical section must finish (or be
+            # SIGKILL'd by the runner). The remote ref update is atomic, so a
+            # kill mid-push cannot publish a partial commit. Letting this push
+            # finish is what the next run's handoff wait is fetching.
+            if [ "$in_critical" != 1 ] && [ -n "$child_pid" ]; then
+              kill_tree "$child_pid" TERM
+            fi
+          }
+          trap 'on_signal' TERM INT HUP
+
+          wait_pid() {
+            local pid=$1
+            local rc=0
+            while true; do
+              if wait "$pid"; then
+                rc=0
+                break
+              else
+                rc=$?
+              fi
+              if ! kill -0 "$pid" 2>/dev/null; then
+                break
+              fi
+              if [ "$stop_requested" = 1 ] && [ "$in_critical" != 1 ]; then
+                kill_tree "$pid" KILL
+              fi
+            done
+            if [ "$child_pid" = "$pid" ]; then
+              child_pid=""
+            fi
+            return "$rc"
+          }
+
+          run_child() {
+            "$@" &
+            child_pid=$!
+            wait_pid "$child_pid"
+          }
+
+          sleep_for() {
+            local secs="$1"
+            if [ "$secs" -le 0 ] || [ "$stop_requested" = 1 ]; then
+              [ "$stop_requested" = 1 ] && return 1
+              return 0
+            fi
+            run_child sleep "$secs" || true
+            if [ "$stop_requested" = 1 ]; then
+              return 1
+            fi
+            return 0
+          }
+
+          # Seconds until the next :07/:22/:37/:52 UTC slot. WATCH_SLOT_INTERVAL_SEC
+          # (tests only) uses a fixed spacing instead of the wall-clock slots.
+          seconds_until_next_slot() {
+            local now target minute hour_start m interval
+            now=$(date +%s)
+            if [ -n "${WATCH_SLOT_INTERVAL_SEC:-}" ]; then
+              interval=$((WATCH_SLOT_INTERVAL_SEC))
+              if [ "$interval" -lt 1 ]; then
+                echo "WATCH_SLOT_INTERVAL_SEC must be >= 1" >&2
+                exit 1
+              fi
+              target=$(( (now / interval + 1) * interval ))
+              if [ $((target - now)) -lt 2 ]; then
+                target=$((target + interval))
+              fi
+            else
+              hour_start=$(date -u -d "$(date -u +%Y-%m-%dT%H:00:00Z)" +%s)
+              minute=$(date -u +%M)
+              minute=$((10#$minute))
+              target=""
+              for m in 7 22 37 52; do
+                if [ "$m" -gt "$minute" ]; then
+                  target=$((hour_start + m * 60))
+                  break
+                fi
+              done
+              if [ -z "$target" ]; then
+                target=$((hour_start + 3600 + 7 * 60))
+              fi
+              # A cycle that lands a few seconds before the slot should wait
+              # for the following one, not start again immediately.
+              if [ $((target - now)) -lt 5 ]; then
+                target=$((target + 900))
+              fi
+            fi
+            echo $((target - now))
+          }
+
+          validate_breaking_log() {
+            [ -f state/breaking.log ] || return 0
+            python3 -c 'import json,pathlib; [json.loads(line) for line in pathlib.Path("state/breaking.log").read_text(encoding="utf-8").splitlines() if line.strip()]'
+          }
+
+          # Dump, commit, rebase, push. TERM/INT are ignored inside so a
+          # cancel cannot leave a half-written breaking.log in a commit.
+          # state.jsonl is already replaced atomically by state.py. The
+          # remote ref update is atomic: a kill mid-push does not publish
+          # a partial commit. Only one attempt; the caller retries.
+          protected_push() {
+            in_critical=1
+            (
+              trap '' TERM INT HUP
+              set -euo pipefail
+              if [ -f state/breaking.log.pre-dump ]; then
+                cp state/breaking.log.pre-dump state/breaking.log
+              fi
+              if [ -f state/breaking.log ]; then
+                cp state/breaking.log state/breaking.log.pre-dump
+              fi
+              python3 state.py dump
+              if ! validate_breaking_log; then
+                if [ -f state/breaking.log.pre-dump ]; then
+                  cp state/breaking.log.pre-dump state/breaking.log
+                fi
+                echo "breaking.log failed validation; not committing" >&2
+                exit 1
+              fi
+              rm -f state/breaking.log.pre-dump
+              git add -- state/state.jsonl
+              if [ -f state/breaking.log ]; then
+                git add -- state/breaking.log
+              fi
+              if ! git diff --cached --quiet; then
+                git commit -m "state: $(date -u +%Y-%m-%dT%H:%MZ)"
+              fi
+              git fetch origin "$BRANCH"
+              ahead=$(git rev-list --count "origin/${BRANCH}..HEAD")
+              if [ "$ahead" = "0" ]; then
+                echo "nothing to push"
+                exit 0
+              fi
+              git pull --rebase -X theirs origin "$BRANCH"
+              git push origin "HEAD:${BRANCH}"
+            ) &
+            local pid=$!
+            child_pid=$pid
+            local rc=0
+            wait_pid "$pid" || rc=$?
+            in_critical=0
+            return "$rc"
+          }
+
+          save_and_push() {
+            local attempt rc
+            for attempt in 1 2 3 4 5; do
+              if [ "$stop_requested" = 1 ]; then
+                return 0
+              fi
+              git rebase --abort 2>/dev/null || true
+              rc=0
+              protected_push || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                return 0
+              fi
+              echo "push attempt ${attempt} failed (rc=${rc}); will rebase and retry"
+              git rebase --abort 2>/dev/null || true
+              # Shallow clones sometimes cannot find the merge base.
+              git fetch --deepen=100 origin "$BRANCH" \
+                || git fetch --unshallow origin "$BRANCH" \
+                || true
+              if [ "$stop_requested" = 1 ]; then
+                return 0
+              fi
+              sleep_for $((attempt * 5)) || return 0
+            done
+            return 1
+          }
+
+          if [ "${WATCH_LIB_ONLY:-}" = "1" ]; then
+            if [ "${BASH_SOURCE[0]}" != "$0" ]; then
+              return 0
+            fi
+            exit 0
+          fi
+
+          echo "news-watch: branch=${BRANCH} slots=07,22,37,52 UTC stay_alive=${MAX_SECONDS}s handoff=${HANDOFF}s deadline=$(date -u -d "@${DEADLINE}" +%Y-%m-%dT%H:%MZ)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/
-          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "state: $(date -u +%Y-%m-%dT%H:%MZ)"
-          for i in 1 2 3 4 5; do
-            git pull --rebase -X theirs && git push && exit 0
-            sleep $((i*5))
-          done
-          exit 1
+          export GIT_MERGE_AUTOEDIT=no GIT_EDITOR=true GIT_TERMINAL_PROMPT=0
+          git checkout -B "$BRANCH"
 
+          echo "waiting ${HANDOFF}s so a cancelled run can finish its push"
+          sleep_for "$HANDOFF" || { echo "cancelled during handoff; exiting"; exit 0; }
+
+          fetch_ok=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch origin "$BRANCH"; then
+              fetch_ok=1
+              break
+            fi
+            if [ "$stop_requested" = 1 ]; then
+              echo "cancelled during fetch; exiting"
+              exit 0
+            fi
+            sleep_for $((attempt * 2)) || { echo "cancelled during fetch backoff; exiting"; exit 0; }
+          done
+          if [ "$fetch_ok" != 1 ]; then
+            echo "could not fetch origin/${BRANCH}" >&2
+            exit 1
+          fi
+          git reset --hard "origin/${BRANCH}"
+
+          iteration=0
+          while true; do
+            now=$(date +%s)
+            if [ "$now" -ge "$DEADLINE" ]; then
+              echo "stay-alive window ended; exiting cleanly"
+              exit 0
+            fi
+            iteration=$((iteration + 1))
+            echo "=== iteration ${iteration} $(date -u +%Y-%m-%dT%H:%MZ) remaining=$((DEADLINE - now))s ==="
+
+            rm -rf data
+            rc=0
+            run_child python3 state.py load || rc=$?
+            if [ "$stop_requested" = 1 ]; then
+              echo "cancelled during load; exiting without push"
+              exit 0
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "state.py load failed (${rc})" >&2
+              exit 1
+            fi
+
+            rc=0
+            run_child timeout 480 python3 watcher.py || rc=$?
+            if [ "$stop_requested" = 1 ]; then
+              echo "cancelled during watch; flushing rows already stored for the next run"
+              git rebase --abort 2>/dev/null || true
+              protected_push || echo "final flush did not push; remote ref left unchanged"
+              exit 0
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "watcher exited ${rc}; saving partial progress"
+            fi
+
+            if ! save_and_push; then
+              echo "push failed this iteration; continuing"
+              git rebase --abort 2>/dev/null || true
+            fi
+            if [ "$stop_requested" = 1 ]; then
+              ahead=$(git rev-list --count "origin/${BRANCH}..HEAD" 2>/dev/null || echo 0)
+              if [ "$ahead" != "0" ]; then
+                echo "flushing ${ahead} unpushed commit(s) before handoff"
+                protected_push || echo "final flush did not push; remote ref left unchanged"
+              fi
+              echo "handing off after push"
+              exit 0
+            fi
+
+            wait_s=$(seconds_until_next_slot)
+            remaining=$((DEADLINE - $(date +%s)))
+            if [ "$remaining" -le 0 ] || [ "$wait_s" -ge "$remaining" ]; then
+              echo "next slot is outside the stay-alive window; exiting cleanly"
+              exit 0
+            fi
+            echo "sleeping ${wait_s}s until the next 15-minute slot"
+            sleep_for "$wait_s" || { echo "cancelled during sleep; exiting"; exit 0; }
+          done
