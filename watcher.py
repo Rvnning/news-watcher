@@ -305,7 +305,12 @@ def classify(title, fixed_topic):
     return "other", (0.0, [])
 
 
-def noise_title(title):
+_OPINION_URL = re.compile(r"/(?:opinion|opinions|column|columns|commentary|editorial)s?(?:/|$)", re.I)
+
+
+def noise_title(title, url=""):
+    if url and _OPINION_URL.search(url):
+        return True
     return any(rx.search(title) for rx in _NOISE_RE)
 
 
@@ -319,17 +324,21 @@ def breaking_in_title(title):
 
 
 def politics_in_scope(hits, title):
-    """한미 정치만 남긴다. '대통령' 단독은 한국 기사에서만 인정하고, 제3국 정치는 버린다."""
+    """한미 정치만 남긴다. 제3국 이름은 한미 닻이 있을 때만 남긴다."""
+    foreign = CFG.get("filters", {}).get("foreign_markers", [])
+    has_foreign = any(m in title for m in foreign)
+    # 헌법재판소·대통령처럼 어느 나라 기사에나 나오는 단어는 제3국을 구하지 못한다.
+    kr_us = {"이재명", "트럼프", "Trump", "북한", "김정은", "한미", "국민의힘", "민주당", "더불어민주당",
+             "여당", "야당", "백악관", "White House", "Congress", "Senate", "GOP", "Democrats",
+             "Republicans", "Vance", "밴스", "중간선거", "midterm", "midterms", "정상회담"}
+    if has_foreign:
+        if any(h in kr_us for h in hits) or re.search(r"순방|방한|정상회담|이재명|李|여야|국힘|민주", title):
+            return True
+        return False
     anchors = set(CFG.get("filters", {}).get("politics_anchors", []))
     if any(h in anchors for h in hits):
         return True
-    if "대통령" in hits and HANGUL.search(title):
-        foreign = CFG.get("filters", {}).get("foreign_markers", [])
-        if not any(m in title for m in foreign):
-            return True
-        if re.search(r"순방|방한|정상회담|이재명|李|여야|국힘|민주", title):
-            return True
-    return False
+    return "대통령" in hits and HANGUL.search(title) is not None
 
 
 def passes_relevance(topic, kw, title):
@@ -381,12 +390,123 @@ def salient_tokens(title):
     return found
 
 
-def find_cluster(recent, lang, toks, topic, salient):
+# Ordinary news words. These are not names, so they cannot glue two headlines together.
+_CONTENT_STOP = set("""
+첫 점검 챙긴다 강화 나서 찾아 방문 핵심 당부 속도 확보 오늘 내일 이번 관련 위해 대한 통해 따라
+지난 올해 내년 지난달 연속 역대 최대 규모 발표 전망 시장 한국 미국 중국 일본 글로벌 세계 국내 해외
+정부 국회 대통령 비트코인 암호화폐 가상자산 코인 반도체 증시 코스피 주가 급락 급등 하락 상승 투자
+기업 산업 경제 금융 은행 금리 환율 수출 수입 달러 억원 조원 한다 했다 이다 그리고 우리 있는 없는
+이번주 다음주 가운데 이후 이전 현재 최근 모두 가장 매우 다시 계속 가능 필요 예정 공식 직접 설명
+협력 추진 논의 대응 지원 확대 감소 증가 기록 마감 출발 개장 폐장 장중 시간 오전 오후 회장 사장
+중간선거 대선 선거 민주당 공화당 백악관 행정부 정상회담 머니투데이 연합뉴스 데이터센터
+해킹 탈취 거래소 출금 자금 기자 뉴스 속보 종합 단독 현장 영상 사진
+bitcoin crypto market price stock stocks fed election midterms midterm says said after before
+about their from with this that have been will into over just more than year years day days week
+white house administration president korean korea japan japanese court
+the and how are for you was its not has can but his who now new one out all may any our per via amid
+what does here most when where which while than then them your
+""".split())
+_EN_ENTITY_STOP = {w.lower() for w in """
+The A An In On Of To For And Or But At By As Is Are Was With From After Before New How Why What
+This That It Its US AI We He She They I If So No Not May Can Could Would Should Will Just More
+Over Into After About Says Said After When Where Which While Than Then Them Your Our
+""".split()}
+# Long particles only. A one-syllable ending is often part of the name itself.
+_CONTENT_PARTICLE = re.compile(
+    r"(으로부터|에서부터|이라고|이라는|까지|부터|으로|에서|에게|한테)$")
+_EN_ENTITY = re.compile(r"[A-Z][A-Za-z0-9]{1,}")
+
+
+# Case markers that are not part of a name. One-syllable endings such as 도/이
+# stay, because they are often the last syllable of the word itself (공매도).
+_SHORT_PARTICLE = set("과와은는을를의서")
+
+
+def _peel_particle(word):
+    w = word
+    changed = True
+    while changed and len(w) > 3:
+        changed = False
+        m = _CONTENT_PARTICLE.search(w)
+        if m and len(w) - len(m.group()) >= 3:
+            w = w[:len(w) - len(m.group())]
+            changed = True
+            continue
+        if w[-1] in _SHORT_PARTICLE and len(w) - 1 >= 3:
+            w = w[:-1]
+            changed = True
+    return w
+
+
+def _title_words(title):
+    raw = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", title or "")
+    raw = re.sub(r"[^0-9A-Za-z\uac00-\ud7a3\s]", " ", raw)
+    return raw.split()
+
+
+def content_tokens(title):
+    """Content words for title overlap. Names and ordinary words both count here.
+
+    A shared ordinary word is not enough on its own. find_cluster also asks
+    for character overlap or a shared proper name.
+    """
+    out = set()
+    for w in _title_words(title):
+        if re.fullmatch(r"[\uac00-\ud7a3]+", w):
+            w = _peel_particle(w)
+            if len(w) >= 2 and w not in _CONTENT_STOP:
+                out.add(w)
+        else:
+            wl = w.lower()
+            if wl in _CONTENT_STOP or len(wl) <= 2 or wl.isdigit():
+                continue
+            out.add(wl)
+    return out
+
+
+def named_entities(title):
+    """Proper-name candidates, with no list of people, places, or companies.
+
+    English names are the capitalized tokens in the headline. Hangul has no
+    case, so a Hangul token counts only when it is not an ordinary news word
+    and is long enough to be a name. Whether it actually identifies one event
+    is decided later, by recurrence across outlets inside the time window.
+    """
+    out = set()
+    for m in _EN_ENTITY.finditer(title or ""):
+        w = m.group()
+        if w.lower() in _EN_ENTITY_STOP or w.lower() in _CONTENT_STOP:
+            continue
+        if w.isupper() or (len(w) >= 3 and any(ch.islower() for ch in w[1:])):
+            out.add(w.lower())
+        elif len(w) >= 3:
+            out.add(w.lower())
+    for w in _title_words(title):
+        if not re.fullmatch(r"[\uac00-\ud7a3]+", w):
+            continue
+        w = _peel_particle(w)
+        if 3 <= len(w) <= 8 and w not in _CONTENT_STOP:
+            out.add(w)
+    return out
+
+
+def _char_trigrams(title):
+    s = re.sub(r"[^0-9A-Za-z\uac00-\ud7a3]", "", (title or "").lower())
+    if len(s) < 3:
+        return {s} if s else set()
+    return {s[i:i + 3] for i in range(len(s) - 2)}
+
+
+def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, entities=None, publisher=None):
     """Return an existing item id to merge into, or None.
 
     Title Jaccard misses paraphrases ('돼지 눈' vs '국민은 전부 돼지'). Those
     share salient entities. A new fact token (보상, 사망, 피소) starts a new row
     so a follow-up is not swallowed by the first headline.
+
+    A second path merges outlet rewrites: character trigrams or content-word
+    overlap, and a lower bar when the headlines also share a proper name that
+    is not already spread across many different stories in the window.
     """
     dedup = CFG.get("filters", {}).get("dedup", {})
     if not dedup:
@@ -397,6 +517,11 @@ def find_cluster(recent, lang, toks, topic, salient):
     min_shared = dedup.get("min_shared_salient", 2)
     sal_need = dedup.get("salient_jaccard", 0.5)
     new_facts = set(dedup.get("new_fact_tokens", []))
+    tri_high = dedup.get("char_trigram_jaccard", 0.34)
+    tok_high = dedup.get("content_jaccard", 0.40)
+    tri_mid = dedup.get("entity_char_trigram", 0.16)
+    tok_mid = dedup.get("entity_content_jaccard", 0.22)
+    max_df = dedup.get("max_entity_cluster_df", 8)
     # Subset merge must name a real entity. {trump} alone must not swallow every Trump story.
     # People (trump, 대통령) are in many unrelated stories, so they cannot be the reason
     # a narrower headline is swallowed by a broader one.
@@ -404,14 +529,26 @@ def find_cluster(recent, lang, toks, topic, salient):
                       "altman", "samsung", "sk", "openai", "oil", "anthropic",
                       "tether", "coinbase", "upbit", "polymarket", "pig", "multiculture",
                       "basicincome", "tax", "denuclear", "diplomat"}
+    content = content or set()
+    grams = grams or set()
+    entities = entities or set()
+    ent_df = {}
+    for rec in recent:
+        if now() - rec[3] > win:
+            continue
+        for ent in (rec[8] if len(rec) > 8 else ()):
+            ent_df[ent] = ent_df.get(ent, 0) + 1
     best, bj = None, 0.0
-    for rid, rlang, rtoks, rfs, rtopic, rsal in recent:
+    for rec in recent:
+        rid, rlang, rtoks, rfs, rtopic, rsal = rec[:6]
+        rcontent = rec[6] if len(rec) > 6 else set()
+        rgrams = rec[7] if len(rec) > 7 else set()
+        rentities = rec[8] if len(rec) > 8 else set()
+        rpub = rec[9] if len(rec) > 9 else None
         if now() - rfs > win:
             continue
         same_topic = rtopic == topic
         # 보상 / 사망 / 피소 / ETF flows are a different development in either direction.
-        # A later hack headline must not fold into the compensation row, and a
-        # compensation headline must not fold into the original hack row.
         if (salient ^ rsal) & new_facts:
             continue
         # A Trump reaction ("모른다", "주시") is not the hack headline.
@@ -445,19 +582,45 @@ def find_cluster(recent, lang, toks, topic, salient):
         salient_hit = subset_hit or same_incident or (
             len(shared) >= min_shared and sj >= sal_need and bool(shared - generic)
         )
-        if not same_topic:
-            # Same event on two beats: the Nasdaq drop on the tech feed and the markets feed,
-            # or an unnamed heist headline filed under politics.
+        j = jaccard(toks, rtoks) if rlang == lang else 0.0
+        title_hit = same_topic and rlang == lang and (j >= t_thr or (j >= soft and len(shared) >= 1))
+        inter = content & rcontent
+        uni = content | rcontent
+        cjac = (len(inter) / len(uni)) if uni else 0.0
+        gj = jaccard(grams, rgrams)
+        shared_names = entities & rentities
+        # A name already sitting on many separate stories is not one event.
+        distinctive = {e for e in shared_names if ent_df.get(e, 0) <= max_df}
+        cross_outlet = bool(publisher and rpub and publisher != rpub)
+        high = gj >= tri_high or cjac >= tok_high
+        mid = gj >= tri_mid or (cjac >= tok_mid and len(inter) >= 2)
+        # Disjoint names are different events unless the wording itself matches.
+        disjoint = bool(entities and rentities and not shared_names)
+        entity_hit = bool(distinctive) and mid and cross_outlet and not disjoint
+        content_hit = (high or entity_hit) and not (disjoint and not high)
+        if not same_topic and not content_hit:
+            # Same event on two beats: the Nasdaq drop on the tech feed and the markets feed.
             cross = len(shared) >= 3 or bool(shared & {"nasdaq", "intel", "ustech", "krindex", "binance", "altman"})
             if not cross:
                 continue
-        j = jaccard(toks, rtoks) if rlang == lang else 0.0
-        title_hit = same_topic and rlang == lang and (j >= t_thr or (j >= soft and len(shared) >= 1))
-        if salient_hit or title_hit:
+        if salient_hit or title_hit or content_hit:
             score = len(shared) + (1.5 if "binance" in rsal and "hack" in salient else 0) + sj
+            if content_hit:
+                score += 1 + len(distinctive) + max(gj, cjac)
+            if title_hit:
+                score += j
             if score > bj:
                 best, bj = rid, score
     return best
+
+
+def headline_rank(title):
+    """Keyword weight plus a breaking marker. Used to keep the clearest headline."""
+    best_kw = 0.0
+    for topic in CFG["topics"].values():
+        best_kw = max(best_kw, kw_score(title, topic["keywords"])[0])
+    bk = max([w for kwd, w in CFG["breaking_keywords"].items() if kw_regex(kwd).search(title)] or [0])
+    return best_kw + bk
 
 
 def score_item(row, src_weight, kw, eng, cluster_n):
@@ -555,7 +718,7 @@ def process(con, src, items, recent, stats):
         title = clean_title(it["title"])
         if not title:
             continue
-        if noise_title(title):
+        if noise_title(title, it.get("url") or ""):
             stats["noise"] += 1
             continue
         pub = it["published"] or now()
@@ -571,16 +734,24 @@ def process(con, src, items, recent, stats):
             stats["offtopic"] += 1
             continue
         salient = salient_tokens(title)
+        content = content_tokens(title)
+        grams = _char_trigrams(title)
+        entities = named_entities(title)
+        publisher = it.get("publisher") or src["name"]
         ts = now().isoformat()
         ex = con.execute("SELECT item_id FROM aliases WHERE url_norm=?", (un,)).fetchone()
         target = ex[0] if ex else None
         if target is None:
-            target = find_cluster(recent, lang, toks, topic, salient)
+            target = find_cluster(recent, lang, toks, topic, salient, content, grams, entities, publisher)
             if target is not None:
                 con.execute("INSERT OR IGNORE INTO aliases VALUES(?,?)", (un, target))
         if target is not None:
-            # existing story: merge source into cluster, refresh engagement, rescore
-            row = con.execute("SELECT title,source,topic,published,engagement,cluster_sources FROM items WHERE id=?", (target,)).fetchone()
+            # existing story: merge source into cluster, refresh engagement, rescore.
+            # A clearer rewrite (속보, higher keyword weight) replaces the displayed
+            # title and url. url_norm stays the first copy so the row identity holds.
+            row = con.execute(
+                "SELECT title,source,topic,published,engagement,cluster_sources,url FROM items WHERE id=?",
+                (target,)).fetchone()
             cs = set(json.loads(row[5]))
             key = it["publisher"] or src["name"]
             changed = key not in cs
@@ -588,17 +759,42 @@ def process(con, src, items, recent, stats):
             eng = json.loads(row[4]) if row[4] else None
             if it["engagement"] and row[1] == src["name"]:
                 eng = it["engagement"]; changed = True
-            if not changed:
+            better = headline_rank(title) > headline_rank(row[0])
+            if not changed and not better:
                 stats["dup"] += 1
                 continue
             stats["merged"] += 1
-            r = dict(title=row[0], source=row[1], topic=row[2], published=row[3])
+            display_title = title if better else row[0]
+            display_url = it["url"] if better and it.get("url") else row[6]
+            r = dict(title=display_title, source=row[1], topic=row[2], published=row[3])
             ftopic = CFG["topics"].get(row[2])
-            kw2 = kw_score(row[0], ftopic["keywords"]) if ftopic else (0.0, [])
+            kw2 = kw_score(display_title, ftopic["keywords"]) if ftopic else (0.0, [])
             w = next((s["weight"] for s in CFG["sources"] if s["name"] == row[1]), 1.0)
             sc, reason, age_h = score_item(r, w, kw2, eng, len(cs))
-            con.execute("UPDATE items SET cluster_sources=?, engagement=?, score=?, reason=?, last_update=? WHERE id=?",
-                        (json.dumps(sorted(cs), ensure_ascii=False), json.dumps(eng) if eng else None, sc, reason, ts, target))
+            if better:
+                con.execute("""UPDATE items SET title=?, url=?, lang=?, tokens=?, cluster_sources=?, engagement=?,
+                               score=?, reason=?, last_update=? WHERE id=?""",
+                            (display_title, display_url, lang, json.dumps(sorted(toks), ensure_ascii=False),
+                             json.dumps(sorted(cs), ensure_ascii=False), json.dumps(eng) if eng else None,
+                             sc, reason, ts, target))
+                for i, rec in enumerate(recent):
+                    if rec[0] == target:
+                        # Narrow to names both headlines use, so a roundup that adds
+                        # a second event cannot become the hub for that event.
+                        old_ent = rec[8] if len(rec) > 8 else set()
+                        shared_ent = (old_ent & entities) if old_ent and entities else (old_ent or entities)
+                        recent[i] = (target, lang, toks, rec[3], rec[4], salient, content, grams,
+                                     shared_ent, rec[9] if len(rec) > 9 else publisher)
+                        break
+            else:
+                con.execute("UPDATE items SET cluster_sources=?, engagement=?, score=?, reason=?, last_update=? WHERE id=?",
+                            (json.dumps(sorted(cs), ensure_ascii=False), json.dumps(eng) if eng else None, sc, reason, ts, target))
+                for i, rec in enumerate(recent):
+                    if rec[0] == target:
+                        old_ent = rec[8] if len(rec) > 8 else set()
+                        shared_ent = (old_ent & entities) if old_ent and entities else (old_ent or entities)
+                        recent[i] = (*rec[:8], shared_ent, rec[9] if len(rec) > 9 else publisher)
+                        break
             if maybe_fire(con, target, age_h, kw2[0], eng):
                 stats["breaking"] += 1
                 append_jsonl(item_record(con, target, "upgraded_breaking"))
@@ -614,7 +810,7 @@ def process(con, src, items, recent, stats):
                            json.dumps(cs, ensure_ascii=False), sc, reason))
         iid = cur.lastrowid
         con.execute("INSERT OR IGNORE INTO aliases VALUES(?,?)", (un, iid))
-        recent.append((iid, lang, toks, now(), topic, salient))
+        recent.append((iid, lang, toks, now(), topic, salient, content, grams, entities, publisher))
         stats["new"] += 1
         fired = maybe_fire(con, iid, age_h, kw[0], it["engagement"])
         if fired:
@@ -629,8 +825,12 @@ def run_cycle():
     con.commit()
     log(f"=== cycle {cyc} start ===")
     since = (now() - timedelta(hours=CFG["cluster_window_hours"])).isoformat()
-    recent = [(r[0], r[1], set(json.loads(r[2])), datetime.fromisoformat(r[3]), r[4], salient_tokens(r[5]))
-              for r in con.execute("SELECT id,lang,tokens,first_seen,topic,title FROM items WHERE first_seen>=?", (since,))]
+    recent = []
+    for r in con.execute(
+            "SELECT id,lang,tokens,first_seen,topic,title,publisher FROM items WHERE first_seen>=?", (since,)):
+        recent.append((r[0], r[1], set(json.loads(r[2])), datetime.fromisoformat(r[3]), r[4],
+                       salient_tokens(r[5]), content_tokens(r[5]), _char_trigrams(r[5]),
+                       named_entities(r[5]), r[6] or ""))
     total = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
     ok, failed = [], []
     for src in CFG["sources"]:

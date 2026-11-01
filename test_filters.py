@@ -169,6 +169,192 @@ def test_score_suppression():
     assert "비트코인" in hits and "코인" not in hits
 
 
+# Day-specific names from the 2026-11-01 audit. A later story that uses one of
+# these words must not be dropped because that day's label file mentioned it.
+_DAY_SPECIFIC = (
+    "광주", "전남", "논산", "군공항", "명태균", "윤여준", "분류체계", "6만5000",
+    "O'Leary", "10월 종가", "블루스윕", "아이큐랩", "갤버즈", "이재용", "에르도안",
+)
+
+
+def test_opinion_noise_and_foreign_politics():
+    assert watcher.CFG["cluster_window_hours"] == 24
+    patterns = "\n".join(watcher.CFG["filters"]["noise_patterns"])
+    for term in _DAY_SPECIFIC:
+        assert term not in patterns, term
+    assert "푸틴" not in watcher.CFG["filters"]["foreign_markers"]
+    src_text = open(watcher.__file__, encoding="utf-8").read()
+    assert "_event_anchors" not in src_text
+    for term in _DAY_SPECIFIC:
+        assert term not in src_text, term
+
+    for title in (
+        "[칼럼] 코스피가 흔들릴 때",
+        "[사설] 반도체 수출을 두고",
+        "[기고] 금리 인하를 서두를 이유",
+        "[시론] 예산안의 빈칸",
+        "[오피니언] 중간선거 이후",
+        "[전망] 다음 주 환율",
+        "[초점] 수출 통계의 착시",
+        "[예능] 주말 결방 안내",
+        "[이주의 은행 예금금리] 12개월 최고 연 4.10%",
+        "[이주의 은행 적금금리-11월 1주] 케이뱅크",
+        "주요 은행 금리표",
+    ):
+        assert watcher.noise_title(title), title
+    assert watcher.noise_title("이번 주 금리 전망", "https://news.example.com/opinion/rates")
+    assert watcher.noise_title("칼럼입니다", "https://news.example.com/column/lee")
+    assert watcher.noise_title("해설", "https://news.example.com/columns/weekly")
+    # A bare 전망, a section title that merely contains the word, and a quoted
+    # show name are ordinary headlines.
+    assert not watcher.noise_title("키옥시아 실적 전망")
+    assert not watcher.noise_title("[뉴욕증시-주간전망] 기술주 반등")
+    assert not watcher.noise_title("‘SNL’ Weekend Update Mocks Trump’s Midterm Plea")
+    for title in (
+        "광주 인공지능 데이터센터 착공",
+        "전남·논산 군공항 이전 논의",
+        "명태균 씨 관련 수사",
+        "윤여준 전 장관 정치 개혁 발언",
+        "새 분류체계 발표",
+        "6만5000원 돌파",
+        "O'Leary says the market is open",
+        "10월 종가 기준 수익률",
+        "블루스윕 이후 시리즈",
+        "아이큐랩 신규 서비스",
+        "갤버즈 신제품 공개",
+    ):
+        assert not watcher.noise_title(title), title
+
+    assert screen("푸틴 러시아 대통령, 대 유럽 전쟁 준비 발언", "politics") is None
+    assert screen("에르도안 튀르키예 대통령 국빈방한…3일 李대통령과 정상회담", "politics") is None
+    assert screen("李대통령, 6일 동티모르 대통령과 정상회담", "politics") is None
+    assert screen("코스피 실적 전망", "markets") is None
+    assert screen("[속보] 반도체 10월 수출 564억달러…2개월 연속 500억달러대", "ai_tech") is None
+    assert screen("[예능] 주말 결방 안내", "politics") == "noise"
+
+
+def test_generic_similarity_keeps_distinct_events():
+    """Near-copy headlines from two outlets merge. Different events do not."""
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    titles = [
+        ("ai_tech", "이재용, 日서 AI 반도체 승부처 점검…첨단 패키징 협력 강화"),
+        ("ai_tech", "이재용, 일본 요코하마 패키징랩 첫 점검…AI 반도체 승부처 챙긴다"),
+        ("politics", "에르도안 튀르키예 대통령 국빈방한…3일 李대통령과 정상회담"),
+        ("politics", "李대통령, 6일 동티모르 대통령과 정상회담"),
+        ("politics", "李대통령, 튀르키예·동티모르 연쇄 정상회담…원전·방산 수출 협력"),
+        ("crypto", "바이낸스서 63억달러 가상자산 탈취…북한 해킹조직 개입 의혹"),
+        ("crypto", "바이낸스 출금 재개…입출금 정상화"),
+    ]
+    for i, (topic, t) in enumerate(titles):
+        watcher.process(con, src(topic), [item(t, url=f"https://ex.example/n{i}", publisher=f"N{i}")], recent, stats)
+    kept = [r[0] for r in con.execute("SELECT title FROM items ORDER BY id").fetchall()]
+    assert sum("이재용" in t for t in kept) == 1, kept
+    assert any("튀르키예" in t or "에르도안" in t for t in kept)
+    assert any("동티모르" in t for t in kept)
+    assert sum(1 for t in kept if "튀르키예" in t or "에르도안" in t or "동티모르" in t) >= 2, kept
+    assert any("탈취" in t or "63억" in t for t in kept)
+    assert any("출금 재개" in t for t in kept), kept
+    con.close()
+
+
+def test_reprint_outside_24h_window():
+    """A 30-hour-old annual-stat row is outside the window, and the reprint is not the hack."""
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    first = [
+        "바이낸스서 63억달러 가상자산 탈취…북한 해킹조직 개입 의혹",
+        "올해 전 세계 가상자산 해킹 피해액 89%, 북한 소행",
+    ]
+    for i, t in enumerate(first):
+        watcher.process(con, src("crypto"), [item(t, url=f"https://ex.example/a{i}", publisher=f"A{i}", hours_ago=2)], recent, stats)
+    # Age only yesterday's annual-stat row. The hack stays inside the window,
+    # so a merge into the hack would still be visible.
+    recent[1] = (*recent[1][:3], recent[1][3] - timedelta(hours=30), *recent[1][4:])
+    later = item("\"올해 가상자산 해킹 피해 89%, 북한 소행 추정\" - 머니투데이",
+                 url="https://ex.example/a2", publisher="머니투데이", hours_ago=1)
+    watcher.process(con, src("crypto"), [later], recent, stats)
+    kept = [r[0] for r in con.execute("SELECT title FROM items").fetchall()]
+    assert len(kept) == 3, kept
+    assert any("63억" in t or "탈취" in t for t in kept)
+    assert sum("89%" in t for t in kept) == 2, kept
+    con.close()
+
+
+def test_labeled_day_holdout():
+    """Afternoon of 2026-11-01 is a holdout: do not lose a large share of true stories.
+
+    The exact false-positive rate is not pinned. Thresholds were chosen on the
+    morning slice, and this check only guards the safety property.
+    """
+    import json
+    fixture = os.path.join(os.path.dirname(__file__), "tests", "fixtures", "news-fp-2026-11-01.json")
+    data = json.load(open(fixture, encoding="utf-8"))
+    rows = sorted(data["items"], key=lambda r: (r["first_seen"], r["id"]))
+    cut = datetime.fromisoformat("2026-11-01T06:00:00+00:00")
+    saved = (watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG)
+    clock = {"t": None}
+    tmp = tempfile.mkdtemp()
+    try:
+        watcher.now = lambda: clock["t"]
+        watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+        watcher.CAND = os.path.join(tmp, "c.jsonl")
+        watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+        watcher.RUN_LOG = os.path.join(tmp, "r.log")
+        con = watcher.db()
+        recent = []
+        weights = {s["name"]: s["weight"] for s in watcher.CFG["sources"]}
+        clusters = {}
+        for j in rows:
+            clock["t"] = datetime.fromisoformat(j["first_seen"])
+            src_row = {"name": j["source"], "topic": j["topic"], "type": "rss",
+                       "weight": weights.get(j["source"], 1.0)}
+            it = dict(title=j["title"], url=j["url"],
+                      published=datetime.fromisoformat(j["published"]),
+                      publisher=j["publisher"] or j["source"], engagement=None)
+            st = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+            watcher.process(con, src_row, [it], recent, st)
+            un = it["url"] if str(it["url"]).startswith("signal://") else watcher.norm_url(it["url"])
+            hit = con.execute("SELECT item_id FROM aliases WHERE url_norm=?", (un,)).fetchone()
+            if hit:
+                clusters.setdefault(hit[0], []).append(j)
+        afternoon_tp = [j for j in rows if j["verdict"] == "정탐" and datetime.fromisoformat(j["first_seen"]) >= cut]
+        assert len(afternoon_tp) == 60
+        id_to_cluster = {}
+        for iid, members in clusters.items():
+            for m in members:
+                id_to_cluster[m["id"]] = iid
+        lost = 0
+        for j in afternoon_tp:
+            iid = id_to_cluster.get(j["id"])
+            if iid is None:
+                lost += 1
+                continue
+            tps = [m for m in clusters[iid] if m["verdict"] == "정탐"]
+            if len(tps) != 1:
+                lost += 1
+        assert lost / len(afternoon_tp) <= 0.25, lost
+        def true_hits(words):
+            return {iid for iid, members in clusters.items()
+                    if any(m["verdict"] == "정탐" and any(w in m["title"] for w in words) for m in members)}
+        turkey = true_hits(("에르도안", "튀르키예"))
+        timor = true_hits(("동티모르",))
+        assert turkey and timor and not (turkey & timor)
+        con.close()
+    finally:
+        watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG = saved
+
+
 if __name__ == "__main__":
     test_hangul_false_friends()
     test_relevance_gates()
@@ -176,4 +362,8 @@ if __name__ == "__main__":
     test_compensation_is_not_the_hack()
     test_reactions_stay_separate()
     test_score_suppression()
+    test_opinion_noise_and_foreign_politics()
+    test_generic_similarity_keeps_distinct_events()
+    test_reprint_outside_24h_window()
+    test_labeled_day_holdout()
     print("ok")

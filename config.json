@@ -74,12 +74,20 @@
       "cheesecake factory", "announces \\$[0-9.]+m raised", "next target", "price range",
       "왜 하락", "금요일 클립", "풀영상", "추모", "\\[주간", "시황\\]", "\\| Season",
       "경제본색", "금주의 관심인물", "오늘의 국회일정", "오늘의 북한", "감사패", "기후 한 편",
-      "공시하는 상장사", "대통령님"
+      "공시하는 상장사", "대통령님",
+      "\\[(?:칼럼|사설|기고|시론|오피니언|전망|초점)\\]",
+      "\\[(?:예능|연예|드라마|오락)\\]",
+      "예금금리", "적금금리", "금리표"
     ],
     "dedup": {
       "salient_jaccard": 0.5,
       "min_shared_salient": 2,
       "title_jaccard_with_shared": 0.38,
+      "char_trigram_jaccard": 0.36,
+      "content_jaccard": 0.40,
+      "entity_char_trigram": 0.20,
+      "entity_content_jaccard": 0.32,
+      "max_entity_cluster_df": 4,
       "new_fact_tokens": ["compensation", "death", "lawsuit", "etf", "annual"],
       "signals": {
         "btc": ["bitcoin", "비트코인", "btc"],
@@ -114,7 +122,7 @@
         "etf": ["etf"],
         "compensation": ["보상", "전액"],
         "death": ["사망"],
-        "lawsuit": ["피소", "소송"],
+        "lawsuit": ["피소", "소송", "lawsuit"],
         "rate": ["기준금리", "금리"],
         "oil": ["국제유가", "고유가", "유가", "oil", "brent", "crude"],
         "selloff": ["급락", "폭락", "selloff", "sell-off", "plunge", "crash"],
