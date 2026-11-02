@@ -3966,6 +3966,12 @@
 {"_t": "items", "cluster_sources": "[\"Yonhap-All\", \"Yonhap-Industry\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:22:04.101625+00:00", "id": 3966, "lang": "ko", "last_update": "2026-11-02T07:22:13.450607+00:00", "published": "2026-11-02T07:07:45+00:00", "publisher": "Yonhap-All", "queue": "batch", "reason": "src2.5 kw+1(유출) cluster2+1.5 fresh+1", "score": 6.0, "source": "Yonhap-All", "title": "하이브, 사원 여권·카드번호 등 개인정보 유출…\"깊이 사과\"", "tokens": "[\"개인\", \"권카\", \"깊이\", \"드번\", \"등개\", \"번호\", \"보유\", \"브사\", \"사과\", \"사원\", \"여권\", \"원여\", \"유출\", \"이브\", \"이사\", \"인정\", \"정보\", \"출깊\", \"카드\", \"하이\", \"호등\"]", "topic": "ai_tech", "url": "https://www.yna.co.kr/view/AKR20261102138300005", "url_norm": "https://yna.co.kr/view/AKR20261102138300005"}
 {"_t": "items", "cluster_sources": "[\"Hankyung-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:22:15.669166+00:00", "id": 3967, "lang": "ko", "last_update": "2026-11-02T07:22:15.669166+00:00", "published": "2026-11-02T07:06:03+00:00", "publisher": "Hankyung-All", "queue": "batch", "reason": "src2 kw+1(데이터센터) fresh+1", "score": 4.0, "source": "Hankyung-All", "title": "데이터센터 열풍에…몸값 뛴 폐공장·야적장", "tokens": "[\"값뛴\", \"공장\", \"데이\", \"뛴폐\", \"몸값\", \"센터\", \"야적\", \"에몸\", \"열풍\", \"이터\", \"장야\", \"적장\", \"터센\", \"터열\", \"폐공\", \"풍에\"]", "topic": "ai_tech", "url": "https://www.hankyung.com/article/2026110293861", "url_norm": "https://hankyung.com/article/2026110293861"}
 {"_t": "items", "cluster_sources": "[\"Hankyung-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:22:15.687420+00:00", "id": 3968, "lang": "ko", "last_update": "2026-11-02T07:22:15.687420+00:00", "published": "2026-11-02T07:00:21+00:00", "publisher": "Hankyung-All", "queue": "batch", "reason": "src2 kw+2(AI,데이터센터) fresh+1", "score": 5.0, "source": "Hankyung-All", "title": "\"AI 데이터센터 늦으면 도태\"…빅테크, 아시아 부품사에 줄섰다", "tokens": "[\"ai\", \"i데\", \"늦으\", \"데이\", \"도태\", \"면도\", \"부품\", \"빅테\", \"사에\", \"섰다\", \"센터\", \"시아\", \"아부\", \"아시\", \"에줄\", \"으면\", \"이터\", \"줄섰\", \"크아\", \"태빅\", \"터늦\", \"터센\", \"테크\", \"품사\"]", "topic": "ai_tech", "url": "https://www.hankyung.com/article/2026110293921", "url_norm": "https://hankyung.com/article/2026110293921"}
+{"_t": "items", "cluster_sources": "[\"Yonhap-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:37:03.583904+00:00", "id": 3969, "lang": "ko", "last_update": "2026-11-02T07:37:03.583904+00:00", "published": "2026-11-02T07:30:45+00:00", "publisher": "Yonhap-All", "queue": "batch", "reason": "src2.5 kw+1.5(코스피) fresh+1", "score": 5.0, "source": "Yonhap-All", "title": "[표] 코스피 지수선물·옵션 시세표(2일)-3", "tokens": "[\"물옵\", \"선물\", \"세표\", \"션시\", \"수선\", \"스피\", \"시세\", \"옵션\", \"지수\", \"코스\", \"표3\", \"피지\"]", "topic": "markets", "url": "https://www.yna.co.kr/view/AKR20261102146200008", "url_norm": "https://yna.co.kr/view/AKR20261102146200008"}
+{"_t": "items", "cluster_sources": "[\"Yonhap-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:37:03.629667+00:00", "id": 3970, "lang": "ko", "last_update": "2026-11-02T07:37:03.629667+00:00", "published": "2026-11-02T07:30:01+00:00", "publisher": "Yonhap-All", "queue": "batch", "reason": "src2.5 kw+1.5(대통령,외교) fresh+1", "score": 5.0, "source": "Yonhap-All", "title": "역대 대통령이 받은 외교선물 56점 한자리에…대통령기록관 특별전", "tokens": "[\"56\", \"6점\", \"관특\", \"교선\", \"기록\", \"대대\", \"대통\", \"령기\", \"령이\", \"록관\", \"리에\", \"물5\", \"받은\", \"별전\", \"선물\", \"에대\", \"역대\", \"외교\", \"은외\", \"이받\", \"자리\", \"점한\", \"통령\", \"특별\", \"한자\"]", "topic": "politics", "url": "https://www.yna.co.kr/view/AKR20261102121200530", "url_norm": "https://yna.co.kr/view/AKR20261102121200530"}
+{"_t": "items", "cluster_sources": "[\"Yonhap-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:37:03.660557+00:00", "id": 3971, "lang": "ko", "last_update": "2026-11-02T07:37:03.660557+00:00", "published": "2026-11-02T07:23:17+00:00", "publisher": "Yonhap-All", "queue": "batch", "reason": "src2.5 kw+1.5(코스피) fresh+1", "score": 5.0, "source": "Yonhap-All", "title": "기관 '사자'에 전약후강 코스피…美기술주 '삭풍' 딛고 2.2% 반등(종합)", "tokens": "[\"22\", \"2반\", \"美기\", \"강코\", \"고2\", \"관사\", \"기관\", \"기술\", \"딛고\", \"반등\", \"사자\", \"삭풍\", \"술주\", \"스피\", \"약후\", \"에전\", \"자에\", \"전약\", \"주삭\", \"코스\", \"풍딛\", \"피美\", \"후강\"]", "topic": "markets", "url": "https://www.yna.co.kr/view/AKR20261102131851008", "url_norm": "https://yna.co.kr/view/AKR20261102131851008"}
+{"_t": "items", "cluster_sources": "[\"Maeil-Headlines\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:37:16.182161+00:00", "id": 3972, "lang": "ko", "last_update": "2026-11-02T07:37:16.182161+00:00", "published": "2026-11-02T07:33:15+00:00", "publisher": "Maeil-Headlines", "queue": "batch", "reason": "src2 kw+2.5(금리,국채) fresh+1", "score": 5.5, "source": "Maeil-Headlines", "title": "“금리 내리기 전에 담자”…미국 10년물 국채 ETF에 쏠린 눈", "tokens": "[\"0년\", \"10\", \"et\", \"f에\", \"tf\", \"국1\", \"국채\", \"금리\", \"기전\", \"내리\", \"년물\", \"담자\", \"리기\", \"리내\", \"린눈\", \"물국\", \"미국\", \"쏠린\", \"에담\", \"에쏠\", \"자미\", \"전에\", \"채e\"]", "topic": "markets", "url": "https://www.mk.co.kr/news/stock/12193652", "url_norm": "https://mk.co.kr/news/stock/12193652"}
+{"_t": "items", "cluster_sources": "[\"Maeil-Headlines\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T07:37:16.202371+00:00", "id": 3973, "lang": "ko", "last_update": "2026-11-02T07:37:16.202371+00:00", "published": "2026-11-02T07:27:42+00:00", "publisher": "Maeil-Headlines", "queue": "batch", "reason": "src2 kw+1.5(한국은행) fresh+1", "score": 4.5, "source": "Maeil-Headlines", "title": "한국은행, 유네스코와 ‘기념주화에 새겨진 세계유산’ 기획전", "tokens": "[\"겨진\", \"계유\", \"국은\", \"기념\", \"기획\", \"네스\", \"념주\", \"산기\", \"새겨\", \"세계\", \"스코\", \"에새\", \"와기\", \"유네\", \"유산\", \"은행\", \"주화\", \"진세\", \"코와\", \"한국\", \"행유\", \"화에\", \"획전\"]", "topic": "markets", "url": "https://www.mk.co.kr/news/economy/12193644", "url_norm": "https://mk.co.kr/news/economy/12193644"}
+{"_t": "items", "cluster_sources": "[\"HackerNews\"]", "engagement": "{\"points\": 46, \"comments\": 11, \"hn\": \"https://news.ycombinator.com/item?id=50327416\"}", "fired": 0, "first_seen": "2026-11-02T07:37:22.447167+00:00", "id": 3974, "lang": "en", "last_update": "2026-11-02T07:37:22.447167+00:00", "published": "2026-11-01T17:01:34+00:00", "publisher": "HackerNews", "queue": "batch", "reason": "src1.5 kw+1.5(OpenAI) velocity+0.16(3pts/h) old-2", "score": 1.16, "source": "HackerNews-FrontPage", "title": "I Am the Reason OpenAI Is Killing Unlimited Chats", "tokens": "[\"am\", \"chats\", \"killing\", \"openai\", \"reason\", \"unlimited\"]", "topic": "ai_tech", "url": "https://chaosmanage.github.io/i-killed-unlimited-chatgpt/", "url_norm": "https://chaosmanage.github.io/i-killed-unlimited-chatgpt"}
 {"_t": "aliases", "item_id": 2483, "url_norm": "https://assemblee-nationale.fr/dyn/17/comptes-rendus/seance/session-ordinaire-de-2026-2027/premiere-seance-du-vendredi-30-octobre-2026"}
 {"_t": "aliases", "item_id": 1832, "url_norm": "https://bbc.co.uk/news/articles/ck9dz3v7z7v3o?at_campaign=rss&at_medium=RSS"}
 {"_t": "aliases", "item_id": 413, "url_norm": "https://bbc.co.uk/news/articles/cm5yn8eqg3npo?at_campaign=rss&at_medium=RSS"}
@@ -3980,6 +3986,7 @@
 {"_t": "aliases", "item_id": 1144, "url_norm": "https://bloomberglinea.com.br/negocios/atech-da-embraer-quer-dobrar-de-tamanho-ate-2030-com-controle-de-trafego-de-drones"}
 {"_t": "aliases", "item_id": 1140, "url_norm": "https://blue-continuum.com/verne-paris"}
 {"_t": "aliases", "item_id": 1137, "url_norm": "https://bostonglobe.com/2026/10/29/metro/patrick-stewart-picard-star-trek-the-next-generation"}
+{"_t": "aliases", "item_id": 3974, "url_norm": "https://chaosmanage.github.io/i-killed-unlimited-chatgpt"}
 {"_t": "aliases", "item_id": 423, "url_norm": "https://cnbc.com/2026/10/29/circle-tether-freeze-funds-impacted-by-potential-binance-security-issue.html"}
 {"_t": "aliases", "item_id": 263, "url_norm": "https://cnbc.com/2026/10/30/2026-midterm-election-wall-street-prepares-for-democratic-gains.html"}
 {"_t": "aliases", "item_id": 1181, "url_norm": "https://cnbc.com/2026/10/30/alaska-senate-election-doj-lawsuit-sullivan-peltola.html"}
@@ -4389,6 +4396,7 @@
 {"_t": "aliases", "item_id": 3063, "url_norm": "https://mk.co.kr/news/economy/12192938"}
 {"_t": "aliases", "item_id": 3381, "url_norm": "https://mk.co.kr/news/economy/12193048"}
 {"_t": "aliases", "item_id": 3593, "url_norm": "https://mk.co.kr/news/economy/12193151"}
+{"_t": "aliases", "item_id": 3973, "url_norm": "https://mk.co.kr/news/economy/12193644"}
 {"_t": "aliases", "item_id": 19, "url_norm": "https://mk.co.kr/news/it/12191584"}
 {"_t": "aliases", "item_id": 1059, "url_norm": "https://mk.co.kr/news/it/12191852"}
 {"_t": "aliases", "item_id": 1066, "url_norm": "https://mk.co.kr/news/it/12191854"}
@@ -4562,6 +4570,7 @@
 {"_t": "aliases", "item_id": 3961, "url_norm": "https://mk.co.kr/news/stock/12193559"}
 {"_t": "aliases", "item_id": 3960, "url_norm": "https://mk.co.kr/news/stock/12193560"}
 {"_t": "aliases", "item_id": 2959, "url_norm": "https://mk.co.kr/news/stock/12193633"}
+{"_t": "aliases", "item_id": 3972, "url_norm": "https://mk.co.kr/news/stock/12193652"}
 {"_t": "aliases", "item_id": 1063, "url_norm": "https://mk.co.kr/news/world/12191865"}
 {"_t": "aliases", "item_id": 1052, "url_norm": "https://mk.co.kr/news/world/12191974"}
 {"_t": "aliases", "item_id": 1048, "url_norm": "https://mk.co.kr/news/world/12192033"}
@@ -10512,6 +10521,7 @@
 {"_t": "aliases", "item_id": 3908, "url_norm": "https://yna.co.kr/view/AKR20261102107951053"}
 {"_t": "aliases", "item_id": 3875, "url_norm": "https://yna.co.kr/view/AKR20261102109500008"}
 {"_t": "aliases", "item_id": 3937, "url_norm": "https://yna.co.kr/view/AKR20261102115800001"}
+{"_t": "aliases", "item_id": 3970, "url_norm": "https://yna.co.kr/view/AKR20261102121200530"}
 {"_t": "aliases", "item_id": 3560, "url_norm": "https://yna.co.kr/view/AKR20261102130100002"}
 {"_t": "aliases", "item_id": 3560, "url_norm": "https://yna.co.kr/view/AKR20261102130500008"}
 {"_t": "aliases", "item_id": 3952, "url_norm": "https://yna.co.kr/view/AKR20261102130700008"}
@@ -10519,17 +10529,21 @@
 {"_t": "aliases", "item_id": 3560, "url_norm": "https://yna.co.kr/view/AKR20261102131100008"}
 {"_t": "aliases", "item_id": 3963, "url_norm": "https://yna.co.kr/view/AKR20261102131600002"}
 {"_t": "aliases", "item_id": 3136, "url_norm": "https://yna.co.kr/view/AKR20261102131800008"}
+{"_t": "aliases", "item_id": 3971, "url_norm": "https://yna.co.kr/view/AKR20261102131851008"}
 {"_t": "aliases", "item_id": 3950, "url_norm": "https://yna.co.kr/view/AKR20261102134000008"}
 {"_t": "aliases", "item_id": 3950, "url_norm": "https://yna.co.kr/view/AKR20261102134100008"}
 {"_t": "aliases", "item_id": 3120, "url_norm": "https://yna.co.kr/view/AKR20261102134600002"}
 {"_t": "aliases", "item_id": 3966, "url_norm": "https://yna.co.kr/view/AKR20261102138300005"}
 {"_t": "aliases", "item_id": 3179, "url_norm": "https://yna.co.kr/view/AKR20261102138700017"}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:28.873265+00:00", "name": "BBC-Tech", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:42.843713+00:00", "name": "Binance-PriceMoves", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:30.487490+00:00", "name": "CNBC-TopNews", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:34.083668+00:00", "name": "CoinDesk", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:35.770913+00:00", "name": "Cointelegraph", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:37.349143+00:00", "name": "Decrypt", "skip_until_cycle": 0}
+{"_t": "aliases", "item_id": 3969, "url_norm": "https://yna.co.kr/view/AKR20261102146000008"}
+{"_t": "aliases", "item_id": 3969, "url_norm": "https://yna.co.kr/view/AKR20261102146100008"}
+{"_t": "aliases", "item_id": 3969, "url_norm": "https://yna.co.kr/view/AKR20261102146200008"}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:27.372375+00:00", "name": "BBC-Tech", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:40.740777+00:00", "name": "Binance-PriceMoves", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:28.974899+00:00", "name": "CNBC-TopNews", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:32.434536+00:00", "name": "CoinDesk", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:34.061922+00:00", "name": "Cointelegraph", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:35.627764+00:00", "name": "Decrypt", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-KR-AI", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-KR-Crypto", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-KR-Markets", "skip_until_cycle": 111}
@@ -10538,21 +10552,21 @@
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-US-Crypto", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-US-Politics", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-US-Tech", "skip_until_cycle": 111}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:23.969841+00:00", "name": "HackerNews-FrontPage", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:15.925115+00:00", "name": "Hankyung-All", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:22.211442+00:00", "name": "JTBC-Newsflash", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:17.815668+00:00", "name": "Maeil-Headlines", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:19.577615+00:00", "name": "Maeil-Stocks", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:32.019487+00:00", "name": "MarketWatch-Top", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:39.078642+00:00", "name": "Politico", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:22.454736+00:00", "name": "HackerNews-FrontPage", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:14.459311+00:00", "name": "Hankyung-All", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:20.646967+00:00", "name": "JTBC-Newsflash", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:16.357027+00:00", "name": "Maeil-Headlines", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:18.116412+00:00", "name": "Maeil-Stocks", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:30.618517+00:00", "name": "MarketWatch-Top", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:37.276608+00:00", "name": "Politico", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-CryptoCurrency", "skip_until_cycle": 120}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-politics", "skip_until_cycle": 120}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-stocks", "skip_until_cycle": 120}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-technology", "skip_until_cycle": 120}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:25.572673+00:00", "name": "TechCrunch", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:27.177987+00:00", "name": "TheVerge", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:04.471188+00:00", "name": "Yonhap-All", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:07.518570+00:00", "name": "Yonhap-Economy", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:13.807703+00:00", "name": "Yonhap-Industry", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:22:10.743060+00:00", "name": "Yonhap-Politics", "skip_until_cycle": 0}
-{"_t": "meta", "k": "cycle", "v": "104"}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:24.059341+00:00", "name": "TechCrunch", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:25.658544+00:00", "name": "TheVerge", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:04.019182+00:00", "name": "Yonhap-All", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:06.989690+00:00", "name": "Yonhap-Economy", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:12.636876+00:00", "name": "Yonhap-Industry", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T07:37:09.815129+00:00", "name": "Yonhap-Politics", "skip_until_cycle": 0}
+{"_t": "meta", "k": "cycle", "v": "105"}
