@@ -208,7 +208,18 @@ def test_opinion_noise_and_foreign_politics():
     # A bare 전망, a section title that merely contains the word, and a quoted
     # show name are ordinary headlines.
     assert not watcher.noise_title("키옥시아 실적 전망")
-    assert not watcher.noise_title("[뉴욕증시-주간전망] 기술주 반등")
+    assert not watcher.noise_title("코스피 실적 전망")
+    assert watcher.noise_title("[뉴욕증시-주간전망] 기술주 반등")
+    assert watcher.noise_title("[증시전망] 코스피 6,000선 회복 뒤 다시 흔들")
+    assert watcher.noise_title("[굿모닝 증시] 오늘 일정")
+    assert watcher.noise_title("[김대호 진단] 반도체 열전")
+    assert watcher.noise_title("양산시, 생성형 AI 활용 경진대회 장려상")
+    assert watcher.noise_title("한국콜마, ESG 대통령표창 2관왕")
+    assert watcher.noise_title("Will Solana Hit $500 by 2028?")
+    assert watcher.noise_title("비트코인 1.05% 오른 7만 8,249달러")
+    assert not watcher.noise_title("[오전 브리핑] 비트코인 1억425만원…한은, 가상자산 진출 현황 조사")
+    assert not watcher.noise_title("Crypto: Ethereum drops 16% after record ETF outflows")
+    assert not watcher.noise_title("뉴욕증시, 기술주 급락")
     assert not watcher.noise_title("‘SNL’ Weekend Update Mocks Trump’s Midterm Plea")
     for title in (
         "광주 인공지능 데이터센터 착공",
@@ -231,6 +242,38 @@ def test_opinion_noise_and_foreign_politics():
     assert screen("코스피 실적 전망", "markets") is None
     assert screen("[속보] 반도체 10월 수출 564억달러…2개월 연속 500억달러대", "ai_tech") is None
     assert screen("[예능] 주말 결방 안내", "politics") == "noise"
+
+
+def test_session_and_print_cluster_without_merging_directions():
+    """The same tape in the same direction collapses. The drop and the bounce do not."""
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    titles = [
+        "[속보] 코스피 1.62% 내린 5,637.77 개장",
+        "코스피, 외국인·개인 매도세에 장중 1.62% 약세",
+        "[속보] 코스피, 낙폭 축소해 보합권서 등락…장중 상승 전환도",
+        "코스피, 장중 상승 전환해 1%대 오름세…코스닥도 반등",
+        "[속보] 원·달러 환율, 9.5원 오른 1343.8원",
+        "원·달러 환율 9.5원 급등, 1343.8원",
+        "[속보] 李대통령 \"반도체·피지컬AI 등 3대 메가 프로젝트 21.3조 투자\"",
+        "李대통령 \"AI·반도체 등 3대 메가프로젝트에 21.3조 투자\"",
+        "[속보] 李대통령 \"국방예산 8.2% 증액…핵잠 확보할 것\"",
+    ]
+    for i, t in enumerate(titles):
+        topic = "markets" if i < 6 else "politics"
+        watcher.process(con, src(topic), [item(t, url=f"https://ex.example/s{i}", publisher=f"S{i}")], recent, stats)
+    kept = [r[0] for r in con.execute("SELECT title FROM items ORDER BY id").fetchall()]
+    assert sum("1.62%" in t or "5,637" in t for t in kept) == 1, kept
+    assert sum("상승 전환" in t or "오름세" in t for t in kept) == 1, kept
+    assert sum("9.5" in t or "1343.8" in t for t in kept) == 1, kept
+    assert sum("21.3" in t for t in kept) == 1, kept
+    assert any("8.2%" in t for t in kept), kept
+    con.close()
 
 
 def test_generic_similarity_keeps_distinct_events():
@@ -355,6 +398,59 @@ def test_labeled_day_holdout():
         watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG = saved
 
 
+def test_nov2_holdout_keeps_true_stories():
+    """Afternoon of 2026-11-02 is held out. True stories in that slice stay stored."""
+    import json
+    fixture = os.path.join(os.path.dirname(__file__), "tests", "fixtures", "news-fp-2026-11-02.json")
+    rows = sorted(json.load(open(fixture, encoding="utf-8"))["items"], key=lambda r: (r["first_seen"], r["id"]))
+    cut = datetime.fromisoformat("2026-11-02T06:00:00+00:00")
+    saved = (watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG)
+    clock = {"t": None}
+    tmp = tempfile.mkdtemp()
+    try:
+        watcher.now = lambda: clock["t"]
+        watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+        watcher.CAND = os.path.join(tmp, "c.jsonl")
+        watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+        watcher.RUN_LOG = os.path.join(tmp, "r.log")
+        con = watcher.db()
+        recent = []
+        weights = {s["name"]: s["weight"] for s in watcher.CFG["sources"]}
+        clusters = {}
+        for j in rows:
+            clock["t"] = datetime.fromisoformat(j["first_seen"])
+            src_row = {"name": j["source"], "topic": j["topic"], "type": "rss",
+                       "weight": weights.get(j["source"], 1.0)}
+            it = dict(title=j["title"], url=j["url"],
+                      published=datetime.fromisoformat(j["published"]),
+                      publisher=j["publisher"] or j["source"], engagement=None)
+            st = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+            watcher.process(con, src_row, [it], recent, st)
+            un = it["url"] if str(it["url"]).startswith("signal://") else watcher.norm_url(it["url"])
+            hit = con.execute("SELECT item_id FROM aliases WHERE url_norm=?", (un,)).fetchone()
+            if hit:
+                clusters.setdefault(hit[0], []).append(j)
+        afternoon_tp = [j for j in rows if j["verdict"] == "정탐" and datetime.fromisoformat(j["first_seen"]) >= cut]
+        assert len(afternoon_tp) == 32
+        id_to = {}
+        for iid, members in clusters.items():
+            for m in members:
+                id_to[m["id"]] = iid
+        lost = 0
+        for j in afternoon_tp:
+            iid = id_to.get(j["id"])
+            if iid is None:
+                lost += 1
+                continue
+            tps = [m for m in clusters[iid] if m["verdict"] == "정탐"]
+            if len(tps) != 1:
+                lost += 1
+        assert lost == 0, lost
+        con.close()
+    finally:
+        watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG = saved
+
+
 if __name__ == "__main__":
     test_hangul_false_friends()
     test_relevance_gates()
@@ -363,7 +459,9 @@ if __name__ == "__main__":
     test_reactions_stay_separate()
     test_score_suppression()
     test_opinion_noise_and_foreign_politics()
+    test_session_and_print_cluster_without_merging_directions()
     test_generic_similarity_keeps_distinct_events()
     test_reprint_outside_24h_window()
     test_labeled_day_holdout()
+    test_nov2_holdout_keeps_true_stories()
     print("ok")

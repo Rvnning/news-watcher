@@ -308,8 +308,33 @@ def classify(title, fixed_topic):
 _OPINION_URL = re.compile(r"/(?:opinion|opinions|column|columns|commentary|editorial)s?(?:/|$)", re.I)
 
 
+# A coin line that is only a price print. A hack, a rule change, or an ETF flow stays.
+# A spot print ("비트코인 1.05% 오른"), not a dollar size ("Hit $827 million") and not a fee.
+_PRICE_TICK = re.compile(
+    r"(?:비트코인|이더리움|리플|솔라나|도지코인|Bitcoin|Ethereum|XRP|Solana|BTC|ETH)"
+    r".{0,32}\d+(?:\.\d+)?\s*%\s*(?:오른|내린|상승|하락|급등|급락|반등)",
+    re.I)
+_PRICE_KEEP = re.compile(
+    r"해킹|승인|규제|조사|유출|압수|소송|금지|동결|법안|hack|approv|outflow|lawsuit|"
+    r"freeze|flaw|resign|scam|exploit|breach|ETF|etf",
+    re.I)
+# "양산시, …" / "부안군, …" is a local-government blurb, whatever the one keyword was.
+# Words that merely end in 시 (증시, 날씨) are not a city.
+_LOCAL_GOV = re.compile(r"^(?:\[[^\]]+\]\s*)?([가-힣]{2,4}(?:시|군|구)),")
+_LOCAL_GOV_SKIP = ("증시", "날씨", "실시", "당시", "동시", "일시", "주시")
+
+
+def _local_gov_blurb(title):
+    m = _LOCAL_GOV.search(title or "")
+    return bool(m) and not m.group(1).endswith(_LOCAL_GOV_SKIP)
+
+
 def noise_title(title, url=""):
     if url and _OPINION_URL.search(url):
+        return True
+    if _local_gov_blurb(title):
+        return True
+    if title and _PRICE_TICK.search(title) and not _PRICE_KEEP.search(title) and not breaking_in_title(title):
         return True
     return any(rx.search(title) for rx in _NOISE_RE)
 
@@ -497,7 +522,97 @@ def _char_trigrams(title):
     return {s[i:i + 3] for i in range(len(s) - 2)}
 
 
-def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, entities=None, publisher=None):
+_SPEC_NUM = re.compile(r"\d+\.\d+|\d{4,}")
+_QUOTE_SPAN = re.compile(r"[\"“”「『]([^\"“”」』]{4,})[\"“”」』]")
+_SESSION_INDEX = (
+    ("kospi", re.compile(r"코스피|KOSPI", re.I)),
+    ("kosdaq", re.compile(r"코스닥|KOSDAQ", re.I)),
+    ("nasdaq", re.compile(r"나스닥|Nasdaq", re.I)),
+    ("fx", re.compile(r"원[·/\s]?달러|환율")),
+)
+_UP_WORD = re.compile(r"상승|급등|오른|반등|오름|강세|전환")
+_DOWN_WORD = re.compile(r"하락|급락|내린|약세|밀리|밀려|낙폭|폭락")
+_TAPE_WORD = re.compile(r"%|개장|마감|장중|등락|상승|하락|급등|급락|반등|내린|오른|보합")
+
+
+def specific_numbers(title):
+    """Decimals and long figures. Years and round budget totals are not one story."""
+    raw = (title or "").replace(",", "").replace("，", "")
+    out = set()
+    for m in _SPEC_NUM.finditer(raw):
+        s = m.group()
+        if re.fullmatch(r"(?:19|20)\d\d", s):
+            continue
+        out.add(s)
+    return out
+
+
+def _quote_jaccard(a, b):
+    """Overlap of the quoted clause, so two wires carrying the same sentence meet."""
+    ba = "".join(_QUOTE_SPAN.findall(a or ""))
+    bb = "".join(_QUOTE_SPAN.findall(b or ""))
+    ga, gb = _char_trigrams(ba), _char_trigrams(bb)
+    if len(ga) < 4 or len(gb) < 4:
+        return 0.0
+    return jaccard(ga, gb)
+
+
+def session_signature(title):
+    """Index tape: the index leads the headline, and the print has a direction.
+
+    Open, midday, and close stay apart. Up and down stay apart. A reversal
+    (전환) counts as the new direction so the bounce does not join the drop.
+    """
+    head = re.sub(r"^\[[^\]]+\]\s*", "", title or "")[:24]
+    idx = None
+    for name, rx in _SESSION_INDEX:
+        if rx.search(head):
+            idx = name
+            break
+    # A feature that merely mentions the index ("반등을 기다리기") is not a tape.
+    if not idx or not re.search(r"\d+(?:\.\d+)?\s*%|개장|마감|장중|[\d,]{4,}", title or ""):
+        return None
+    up, down = _UP_WORD.search(title or ""), _DOWN_WORD.search(title or "")
+    if re.search(r"전환", title or "") and up:
+        direction = "up"
+    elif up and down:
+        direction = "turn"
+    elif up:
+        direction = "up"
+    elif down:
+        direction = "down"
+    else:
+        direction = "flat"
+    if re.search(r"개장|출발", title or ""):
+        phase = "open"
+    elif re.search(r"마감|종가", title or ""):
+        phase = "close"
+    elif re.search(r"장중", title or ""):
+        phase = "intra"
+    else:
+        phase = "none"
+    return (idx, direction, phase)
+
+
+def _session_compatible(a, b):
+    if not a or not b or a[0] != b[0] or a[1] != b[1] or a[1] == "flat":
+        return False
+    # The closing print stays its own story. Earlier updates may join each other.
+    if "close" in (a[2], b[2]) and a[2] != b[2]:
+        return False
+    return True
+
+
+def _merge_session(a, b):
+    if not a:
+        return b
+    if not b or not _session_compatible(a, b):
+        return a
+    phase = a[2] if a[2] != "none" else b[2]
+    return (a[0], a[1], phase)
+
+
+def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, entities=None, publisher=None, title=""):
     """Return an existing item id to merge into, or None.
 
     Title Jaccard misses paraphrases ('돼지 눈' vs '국민은 전부 돼지'). Those
@@ -532,6 +647,8 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
     content = content or set()
     grams = grams or set()
     entities = entities or set()
+    nums = specific_numbers(title)
+    sess = session_signature(title)
     ent_df = {}
     for rec in recent:
         if now() - rec[3] > win:
@@ -545,6 +662,9 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         rgrams = rec[7] if len(rec) > 7 else set()
         rentities = rec[8] if len(rec) > 8 else set()
         rpub = rec[9] if len(rec) > 9 else None
+        rtitle = rec[10] if len(rec) > 10 else ""
+        rnums = rec[11] if len(rec) > 11 else specific_numbers(rtitle)
+        rsess = rec[12] if len(rec) > 12 else session_signature(rtitle)
         if now() - rfs > win:
             continue
         same_topic = rtopic == topic
@@ -598,15 +718,23 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         disjoint = bool(entities and rentities and not shared_names)
         entity_hit = bool(distinctive) and mid and cross_outlet and not disjoint
         content_hit = (high or entity_hit) and not (disjoint and not high)
-        if not same_topic and not content_hit:
+        # A shared print (1.62, 36.9, 5,637) or the same quoted sentence, or the
+        # same index tape in the same direction. Opposite sessions do not glue.
+        sessions_clash = bool(sess and rsess and not _session_compatible(sess, rsess))
+        number_hit = bool(nums and rnums and (nums & rnums)) and same_topic and not sessions_clash
+        session_hit = _session_compatible(sess, rsess)
+        quote_hit = _quote_jaccard(title, rtitle) >= dedup.get("quote_jaccard", 0.34)
+        if not same_topic and not content_hit and not session_hit and not quote_hit:
             # Same event on two beats: the Nasdaq drop on the tech feed and the markets feed.
             cross = len(shared) >= 3 or bool(shared & {"nasdaq", "intel", "ustech", "krindex", "binance", "altman"})
             if not cross:
                 continue
-        if salient_hit or title_hit or content_hit:
+        if salient_hit or title_hit or content_hit or number_hit or session_hit or quote_hit:
             score = len(shared) + (1.5 if "binance" in rsal and "hack" in salient else 0) + sj
-            if content_hit:
+            if content_hit or number_hit or session_hit or quote_hit:
                 score += 1 + len(distinctive) + max(gj, cjac)
+            if number_hit or session_hit or quote_hit:
+                score += 1
             if title_hit:
                 score += j
             if score > bj:
@@ -742,7 +870,7 @@ def process(con, src, items, recent, stats):
         ex = con.execute("SELECT item_id FROM aliases WHERE url_norm=?", (un,)).fetchone()
         target = ex[0] if ex else None
         if target is None:
-            target = find_cluster(recent, lang, toks, topic, salient, content, grams, entities, publisher)
+            target = find_cluster(recent, lang, toks, topic, salient, content, grams, entities, publisher, title)
             if target is not None:
                 con.execute("INSERT OR IGNORE INTO aliases VALUES(?,?)", (un, target))
         if target is not None:
@@ -783,8 +911,12 @@ def process(con, src, items, recent, stats):
                         # a second event cannot become the hub for that event.
                         old_ent = rec[8] if len(rec) > 8 else set()
                         shared_ent = (old_ent & entities) if old_ent and entities else (old_ent or entities)
+                        old_nums = rec[11] if len(rec) > 11 else set()
+                        kept_nums = (old_nums & specific_numbers(title)) if old_nums else specific_numbers(title)
+                        kept_sess = _merge_session(rec[12] if len(rec) > 12 else None, session_signature(title))
                         recent[i] = (target, lang, toks, rec[3], rec[4], salient, content, grams,
-                                     shared_ent, rec[9] if len(rec) > 9 else publisher)
+                                     shared_ent, rec[9] if len(rec) > 9 else publisher,
+                                     title, kept_nums, kept_sess)
                         break
             else:
                 con.execute("UPDATE items SET cluster_sources=?, engagement=?, score=?, reason=?, last_update=? WHERE id=?",
@@ -793,7 +925,12 @@ def process(con, src, items, recent, stats):
                     if rec[0] == target:
                         old_ent = rec[8] if len(rec) > 8 else set()
                         shared_ent = (old_ent & entities) if old_ent and entities else (old_ent or entities)
-                        recent[i] = (*rec[:8], shared_ent, rec[9] if len(rec) > 9 else publisher)
+                        old_nums = rec[11] if len(rec) > 11 else set()
+                        kept_nums = (old_nums & specific_numbers(title)) if old_nums else specific_numbers(title)
+                        kept_sess = _merge_session(rec[12] if len(rec) > 12 else None, session_signature(title))
+                        kept_title = rec[10] if len(rec) > 10 else title
+                        recent[i] = (*rec[:8], shared_ent, rec[9] if len(rec) > 9 else publisher,
+                                     kept_title, kept_nums, kept_sess)
                         break
             if maybe_fire(con, target, age_h, kw2[0], eng):
                 stats["breaking"] += 1
@@ -810,7 +947,8 @@ def process(con, src, items, recent, stats):
                            json.dumps(cs, ensure_ascii=False), sc, reason))
         iid = cur.lastrowid
         con.execute("INSERT OR IGNORE INTO aliases VALUES(?,?)", (un, iid))
-        recent.append((iid, lang, toks, now(), topic, salient, content, grams, entities, publisher))
+        recent.append((iid, lang, toks, now(), topic, salient, content, grams, entities, publisher,
+                        title, specific_numbers(title), session_signature(title)))
         stats["new"] += 1
         fired = maybe_fire(con, iid, age_h, kw[0], it["engagement"])
         if fired:
@@ -830,7 +968,8 @@ def run_cycle():
             "SELECT id,lang,tokens,first_seen,topic,title,publisher FROM items WHERE first_seen>=?", (since,)):
         recent.append((r[0], r[1], set(json.loads(r[2])), datetime.fromisoformat(r[3]), r[4],
                        salient_tokens(r[5]), content_tokens(r[5]), _char_trigrams(r[5]),
-                       named_entities(r[5]), r[6] or ""))
+                       named_entities(r[5]), r[6] or "",
+                       r[5], specific_numbers(r[5]), session_signature(r[5])))
     total = {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
     ok, failed = [], []
     for src in CFG["sources"]:
