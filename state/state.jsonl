@@ -3977,6 +3977,8 @@
 {"_t": "items", "cluster_sources": "[\"Yonhap-All\", \"Yonhap-Economy\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T08:22:04.347990+00:00", "id": 3977, "lang": "ko", "last_update": "2026-11-02T08:22:07.473295+00:00", "published": "2026-11-02T08:13:37+00:00", "publisher": "Yonhap-All", "queue": "batch", "reason": "src2.5 kw+1.5(코스닥,상장) cluster2+1.5 fresh+1", "score": 6.5, "source": "Yonhap-All", "title": "아이엠스팩1호, 오는 4일 코스닥 신규상장", "tokens": "[\"1호\", \"4일\", \"규상\", \"는4\", \"닥신\", \"상장\", \"스닥\", \"스팩\", \"신규\", \"아이\", \"엠스\", \"오는\", \"이엠\", \"일코\", \"코스\", \"팩1\", \"호오\"]", "topic": "markets", "url": "https://www.yna.co.kr/view/AKR20261102156400008", "url_norm": "https://yna.co.kr/view/AKR20261102156400008"}
 {"_t": "items", "cluster_sources": "[\"Yonhap-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T08:22:04.399838+00:00", "id": 3978, "lang": "ko", "last_update": "2026-11-02T08:22:04.399838+00:00", "published": "2026-11-02T08:05:10+00:00", "publisher": "Yonhap-All", "queue": "batch", "reason": "src2.5 kw+1(대통령) fresh+1", "score": 4.5, "source": "Yonhap-All", "title": "울진군수, 경북 찾은 李대통령에 국도 확장 등 현안 건의", "tokens": "[\"건의\", \"경북\", \"국도\", \"군수\", \"대통\", \"도확\", \"등현\", \"령에\", \"북찾\", \"수경\", \"안건\", \"에국\", \"울진\", \"은李\", \"장등\", \"진군\", \"찾은\", \"통령\", \"현안\", \"확장\", \"李대\"]", "topic": "politics", "url": "https://www.yna.co.kr/view/AKR20261102152500053", "url_norm": "https://yna.co.kr/view/AKR20261102152500053"}
 {"_t": "items", "cluster_sources": "[\"Hankyung-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T08:22:16.218305+00:00", "id": 3979, "lang": "ko", "last_update": "2026-11-02T08:22:16.218305+00:00", "published": "2026-11-02T07:08:12+00:00", "publisher": "Hankyung-All", "queue": "batch", "reason": "src2 kw+2(AI,반도체)", "score": 4.0, "source": "Hankyung-All", "title": "반도체, 줄서서 5년치 예약…AI부품 장기계약 시대 열렸다", "tokens": "[\"5년\", \"ai\", \"i부\", \"계약\", \"기계\", \"년치\", \"대열\", \"도체\", \"렸다\", \"반도\", \"부품\", \"서5\", \"서서\", \"시대\", \"약a\", \"약시\", \"열렸\", \"예약\", \"장기\", \"줄서\", \"체줄\", \"치예\", \"품장\"]", "topic": "ai_tech", "url": "https://www.hankyung.com/article/2026110293821", "url_norm": "https://hankyung.com/article/2026110293821"}
+{"_t": "items", "cluster_sources": "[\"Hankyung-All\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T08:37:15.036490+00:00", "id": 3980, "lang": "ko", "last_update": "2026-11-02T08:37:15.036490+00:00", "published": "2026-11-02T08:27:55+00:00", "publisher": "Hankyung-All", "queue": "batch", "reason": "src2 kw+1(반도체) fresh+1", "score": 4.0, "source": "Hankyung-All", "title": "\"반도체산업이 갖는 경기순환적 특성이 삼전닉스의 리스크\"", "tokens": "[\"갖는\", \"경기\", \"기순\", \"는경\", \"닉스\", \"도체\", \"리스\", \"반도\", \"산업\", \"삼전\", \"성이\", \"순환\", \"스의\", \"스크\", \"업이\", \"의리\", \"이갖\", \"이삼\", \"적특\", \"전닉\", \"체산\", \"특성\", \"환적\"]", "topic": "ai_tech", "url": "https://www.hankyung.com/article/2026110209921", "url_norm": "https://hankyung.com/article/2026110209921"}
+{"_t": "items", "cluster_sources": "[\"Maeil-Headlines\"]", "engagement": null, "fired": 0, "first_seen": "2026-11-02T08:37:19.876176+00:00", "id": 3981, "lang": "ko", "last_update": "2026-11-02T08:37:19.876176+00:00", "published": "2026-11-02T08:33:22+00:00", "publisher": "Maeil-Headlines", "queue": "batch", "reason": "src2 kw+1.5(엔비디아) fresh+1", "score": 4.5, "source": "Maeil-Headlines", "title": "\"칩 쓰려면 쿠다 구독료 내세요\"…통행세 걷는 '엔비디아 제국'", "tokens": "[\"걷는\", \"구독\", \"내세\", \"는엔\", \"다구\", \"독료\", \"디아\", \"려면\", \"료내\", \"면쿠\", \"비디\", \"세걷\", \"세요\", \"쓰려\", \"아제\", \"엔비\", \"요통\", \"제국\", \"칩쓰\", \"쿠다\", \"통행\", \"행세\"]", "topic": "ai_tech", "url": "https://www.mk.co.kr/news/world/12193786", "url_norm": "https://mk.co.kr/news/world/12193786"}
 {"_t": "aliases", "item_id": 2483, "url_norm": "https://assemblee-nationale.fr/dyn/17/comptes-rendus/seance/session-ordinaire-de-2026-2027/premiere-seance-du-vendredi-30-octobre-2026"}
 {"_t": "aliases", "item_id": 1832, "url_norm": "https://bbc.co.uk/news/articles/ck9dz3v7z7v3o?at_campaign=rss&at_medium=RSS"}
 {"_t": "aliases", "item_id": 413, "url_norm": "https://bbc.co.uk/news/articles/cm5yn8eqg3npo?at_campaign=rss&at_medium=RSS"}
@@ -4300,6 +4302,7 @@
 {"_t": "aliases", "item_id": 3653, "url_norm": "https://hankyung.com/article/2026110206146"}
 {"_t": "aliases", "item_id": 3964, "url_norm": "https://hankyung.com/article/2026110206926"}
 {"_t": "aliases", "item_id": 2959, "url_norm": "https://hankyung.com/article/202611020834i"}
+{"_t": "aliases", "item_id": 3980, "url_norm": "https://hankyung.com/article/2026110209921"}
 {"_t": "aliases", "item_id": 3051, "url_norm": "https://hankyung.com/article/202611028947H"}
 {"_t": "aliases", "item_id": 3480, "url_norm": "https://hankyung.com/article/2026110289926"}
 {"_t": "aliases", "item_id": 3479, "url_norm": "https://hankyung.com/article/2026110289946"}
@@ -4612,6 +4615,7 @@
 {"_t": "aliases", "item_id": 3570, "url_norm": "https://mk.co.kr/news/world/12193176"}
 {"_t": "aliases", "item_id": 3728, "url_norm": "https://mk.co.kr/news/world/12193333"}
 {"_t": "aliases", "item_id": 3051, "url_norm": "https://mk.co.kr/news/world/12193723"}
+{"_t": "aliases", "item_id": 3981, "url_norm": "https://mk.co.kr/news/world/12193786"}
 {"_t": "aliases", "item_id": 3141, "url_norm": "https://news.google.com/rss/articles/CBMi-AFBVV95cUxOSWpGUU5tbjBjSG5nYk5BUW5BUUtOYW1jSzVjdnMzSFV1dkNQN0F0VjJFZjJYZTlwY3hhZlh1QWRMM0ZZNENIblVxSGxNNGVnczRTc0VDVG5ST0ZSUkNBUHROZG80M2gyeFVwbDdVbnZLdXBlZUVuWE5sOGVkVDVuQjZ2TUROMFpmN3NfQVlQSWI0ZkgyZW0yWVFrbDRrcGhYS1BKOVhYODhUVWVpWWgtU0g5TGNrdkF3WGpuNHBMRzV5NzUwZTFON2dZeURDTjdzYWpqQzZyRG9majVVcXlSdldmZEFNSktMRmNrM2l5Zkk5dzFjUldtUQ?oc=5"}
 {"_t": "aliases", "item_id": 2669, "url_norm": "https://news.google.com/rss/articles/CBMi-AFBVV95cUxPcUFJTnEzek5VQ2ZjWVptYXpPckFETjFyV3YwclVOWGhkV0NCQTNlQVIxb0tSS19leklmRVdwT25LbWMyb2h3a0txRGFiNDBIRXFKTUFKRDdwRHVJQXlDRGRnbjltaEloUFJLTXBCVFVDTEJ0SV95OVpvdk5ZbncyTW1lVUFic21ISm9sV29Wdl9LWE0yTS1Sc0tMTWZJQkxvWUwyNE03VnlKSUU0VXFXM2JqaGdrRmFKYVVRSHh0MVY1M05ObWJIOE5QVV9sa2xLWUVCd3pnQ0c0ZG1TX2tfQzRMTTcyQ2FRSE84SENMaVFIR1BsdnU4UA?oc=5"}
 {"_t": "aliases", "item_id": 545, "url_norm": "https://news.google.com/rss/articles/CBMi-gFBVV95cUxNQVN1OVVnNFFZeDlOaHdOWUJWb3JZQmJNMWRzNEV5c1F4RldIWXN4NFR5UjRxREpOeEgwNkZDSmxlMHZ3VTB6TlU0WjQ0dm00OXBsQ1BkdHVBTTJWVVNrRGdWbHdleUxLT1RCR2xrMXBCTzFIaTdsM2t2M2thNm1WRHNZMG93YUVoUGkzQVk2REJHM2pWNGVfZEh1Ukx4MnhZNzducExfeWhtWS1UUmdLdWMtNTMxdU41Q0NNR3VKZzNjYUgwNVJ4YXg3ZkkyRXJWZHcwRzZJbDI5ci1OMk42ZFpzdlBSbm53eV9meVNSV21QcGhaUDhLN3VB0gH6AUFVX3lxTE1BU3U5VWc0UVl4OU5od05ZQlZvcllCYk0xZHM0RXlzUXhGV0hZc3g0VHlSNHFESk54SDA2RkNKbGUwdndVMHpOVTRaNDR2bTQ5cGxDUGR0dUFNMlZVU2tEZ1Zsd2V5TEtPVEJHbGsxcEJPMUhpN2wza3Yza2E2bVZEc1kwb3dhRWhQaTNBWTZEQkczalY0ZV9kSHVSTHgyeFk3N25wTF95aG1ZLVRSZ0t1Yy01MzF1TjVDQ01HdUpnM2NhSDA1UnhheDdmSTJFclZkdzBHNklsMjlyLU4yTjZkWnN2UFJubnd5X2Z5U1JXbVBwaFpQOEs3dUE?oc=5"}
@@ -10557,12 +10561,12 @@
 {"_t": "aliases", "item_id": 3766, "url_norm": "https://yna.co.kr/view/AKR20261102148851008"}
 {"_t": "aliases", "item_id": 3978, "url_norm": "https://yna.co.kr/view/AKR20261102152500053"}
 {"_t": "aliases", "item_id": 3977, "url_norm": "https://yna.co.kr/view/AKR20261102156400008"}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:32.414321+00:00", "name": "BBC-Tech", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:45.813892+00:00", "name": "Binance-PriceMoves", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:34.068741+00:00", "name": "CNBC-TopNews", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:37.431673+00:00", "name": "CoinDesk", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:39.014248+00:00", "name": "Cointelegraph", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:40.596568+00:00", "name": "Decrypt", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:31.027256+00:00", "name": "BBC-Tech", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:44.198098+00:00", "name": "Binance-PriceMoves", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:32.638737+00:00", "name": "CNBC-TopNews", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:35.962851+00:00", "name": "CoinDesk", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:37.583846+00:00", "name": "Cointelegraph", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:39.160749+00:00", "name": "Decrypt", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-KR-AI", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-KR-Crypto", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-KR-Markets", "skip_until_cycle": 111}
@@ -10571,21 +10575,21 @@
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-US-Crypto", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-US-Politics", "skip_until_cycle": 111}
 {"_t": "source_state", "fails": 2, "last_err": "HTTPError: HTTP Error 429: Too Many Requests", "last_ok": null, "name": "GoogleNews-US-Tech", "skip_until_cycle": 111}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:27.630483+00:00", "name": "HackerNews-FrontPage", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:16.295063+00:00", "name": "Hankyung-All", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:25.815937+00:00", "name": "JTBC-Newsflash", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:20.823413+00:00", "name": "Maeil-Headlines", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:23.131896+00:00", "name": "Maeil-Stocks", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:35.643107+00:00", "name": "MarketWatch-Top", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:42.284264+00:00", "name": "Politico", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:26.257831+00:00", "name": "HackerNews-FrontPage", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:15.181776+00:00", "name": "Hankyung-All", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:24.497787+00:00", "name": "JTBC-Newsflash", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:19.975364+00:00", "name": "Maeil-Headlines", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:21.754598+00:00", "name": "Maeil-Stocks", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:34.196398+00:00", "name": "MarketWatch-Top", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:40.813689+00:00", "name": "Politico", "skip_until_cycle": 0}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-CryptoCurrency", "skip_until_cycle": 120}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-politics", "skip_until_cycle": 120}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-stocks", "skip_until_cycle": 120}
 {"_t": "source_state", "fails": 7, "last_err": "HTTPError: HTTP Error 403: Blocked", "last_ok": null, "name": "Reddit-technology", "skip_until_cycle": 120}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:29.231348+00:00", "name": "TechCrunch", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:30.823022+00:00", "name": "TheVerge", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:04.748999+00:00", "name": "Yonhap-All", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:07.802692+00:00", "name": "Yonhap-Economy", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:14.259354+00:00", "name": "Yonhap-Industry", "skip_until_cycle": 0}
-{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:22:11.082104+00:00", "name": "Yonhap-Politics", "skip_until_cycle": 0}
-{"_t": "meta", "k": "cycle", "v": "108"}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:27.886697+00:00", "name": "TechCrunch", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:29.470555+00:00", "name": "TheVerge", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:04.020063+00:00", "name": "Yonhap-All", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:06.788648+00:00", "name": "Yonhap-Economy", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:13.071276+00:00", "name": "Yonhap-Industry", "skip_until_cycle": 0}
+{"_t": "source_state", "fails": 0, "last_err": null, "last_ok": "2026-11-02T08:37:10.030346+00:00", "name": "Yonhap-Politics", "skip_until_cycle": 0}
+{"_t": "meta", "k": "cycle", "v": "109"}
