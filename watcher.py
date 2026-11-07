@@ -348,8 +348,29 @@ def breaking_in_title(title):
     return any(keyword_in_text(k, title) for k in CFG["breaking_keywords"])
 
 
+# A country name sitting in front of 대통령, with no Korea/US anchor, is not this beat.
+# The word itself is not listed: 파라과이 and the next country are the same shape.
+_KR_US_ANCHOR = re.compile(
+    r"이재명|윤석열|트럼프|Trump|북한|한미|국민의힘|국힘|민주|여당|야당|백악관|White House|Congress|"
+    r"미국|한국|대한민국|방한|순방|정상회담|李|김정은|특검|국회|검찰|GOP|Democrats|Republicans|"
+    r"Senate|중간선거|midterm|White House",
+    re.I)
+_FOREIGN_PRESIDENT = re.compile(r"([가-힣]{3,8})\s*대통령")
+_FOREIGN_PRESIDENT_SKIP = {"우리", "신임", "현직", "전임", "새", "부"}
+
+
+def foreign_head_of_state(title):
+    """True when the president in the headline is a third country's, not Korea or the US."""
+    if not title or _KR_US_ANCHOR.search(title):
+        return False
+    m = _FOREIGN_PRESIDENT.search(title)
+    return bool(m) and m.group(1) not in _FOREIGN_PRESIDENT_SKIP
+
+
 def politics_in_scope(hits, title):
     """한미 정치만 남긴다. 제3국 이름은 한미 닻이 있을 때만 남긴다."""
+    if foreign_head_of_state(title):
+        return False
     foreign = CFG.get("filters", {}).get("foreign_markers", [])
     has_foreign = any(m in title for m in foreign)
     # 헌법재판소·대통령처럼 어느 나라 기사에나 나오는 단어는 제3국을 구하지 못한다.
@@ -565,30 +586,65 @@ _SOFT_NOISE = re.compile(
     r"답하라|여론전|장외투쟁|셀프면죄|사유화|물구나무|라방|사주|규탄|긴급진단|긴급 설문|리서치센터|"
     r"마켓뷰|마켓인사이드|We Asked|Which Hits|what[- ]if|저항선|지지선|\b2030\b|악수|통장|박람회|의무화|"
     r"간담회|숏\s*베팅|하방\s*위험|급등\s*이유|폭락\s*경고|목표주가|목표가|목표치|지킬까|적금|"
-    r"Why\s+\S+(?:\s+\S+){0,6}\s+(?:Surging|Soaring|Rising|Falling)",
+    r"Why\s+\S+(?:\s+\S+){0,6}\s+(?:Surging|Soaring|Rising|Falling)|"
+    r"Weekly recap|Extreme Fear|Further Price Drop|추가 하락",
     re.I)
+# A demand to undo an event is the reaction, even when the title also says 지명.
+_SOFT_DEMAND = re.compile(r"철회하라|맹공|소굴|약탈|전횡|막장|특권")
+# A visit, a show, or a first shipment is the schedule, not the decision.
+_SOFT_PROMO = re.compile(r"위문|공연|첫\s*수출|첫\s*선적")
+# One listed name jumping, not the index. 반도체지수 and 나스닥 stay on the tape.
+_INDEX_PRINT = re.compile(
+    r"코스피|코스닥|나스닥|Nasdaq|다우|Dow|S&P|비트코인|Bitcoin|BTC|이더리움|Ethereum|"
+    r"반도체지수|필라델피아|환율",
+    re.I)
+_SINGLE_SPIKE = re.compile(r"\d+(?:\.\d+)?\s*%[^%]{0,12}(?:폭등|급등|뛰)")
+_RECAP_STAT = re.compile(r"(?:시총|시가총액)")
+_COLUMN_BYLINE = re.compile(r"[가-힣]{2,4}의\s*[‘'\"「]")
+_TAPE_INTERVIEW = re.compile(r"\bto tape\b", re.I)
+_COIN_STACK = re.compile(r"\bbuys?\b", re.I)
+# 장외집회 is the rally. 장외투쟁 is the slogan.
+_STRESS_REACTION = re.compile(r"답하라|여론전|장외(?!집회)|라방|셀프|사유화|물구나무|사주|비판")
+_RALLY = re.compile(r"집회|시위|행진|농성")
 _BREAKING_MARK = re.compile(r"\[속보\]|【속보】|\bBREAKING\b|\bJUST IN\b", re.I)
+
+
+def _single_name_spike(title):
+    return bool(_SINGLE_SPIKE.search(title)) and not _INDEX_PRINT.search(title)
 
 
 def soft_noise(title):
     """True when the headline is commentary, a reaction, or a pitch.
 
-    A roundup and a party reaction stay under the scout line even if a desk
-    stamps [속보] on them. A bill, a nomination, a trading halt, or a leak
-    in the same headline keeps the full score.
+    A roundup, a demand to undo a decision, and a ceremonial visit stay under
+    the scout line even if a desk stamps [속보] on them. A rally is the event.
+    A bill, a nomination, a trading halt, or a leak keeps the full score
+    unless the headline is only demanding that it be undone.
     """
     if not title:
         return False
-    if _SOFT_ROUNDUP.search(title):
+    if _RALLY.search(title):
+        return False
+    if _SOFT_ROUNDUP.search(title) or (_RECAP_STAT.search(title) and "증발" in title):
+        return True
+    if _SOFT_DEMAND.search(title):
+        return True
+    if _SOFT_PROMO.search(title) and not _SOFT_HARD_ACT.search(title):
+        return True
+    if _single_name_spike(title):
+        return True
+    if _TAPE_INTERVIEW.search(title) and re.search(r"interview", title, re.I):
+        return True
+    if (_COIN_STACK.search(title) and re.search(r"\b(?:Bitcoin|BTC)\b", title)
+            and re.search(r"\d{3,}", title) and not _SOFT_HARD_ACT.search(title)):
+        return True
+    if re.search(r"성공적", title) and re.search(r"수면", title):
         return True
     if _STRESS_REACTION.search(title) and not _SOFT_HARD_ACT.search(title):
         return True
     if _BREAKING_MARK.search(title) or _SOFT_HARD_ACT.search(title):
         return False
-    return _SOFT_NOISE.search(title) is not None
-
-
-_STRESS_REACTION = re.compile(r"답하라|여론전|장외|라방|셀프|사유화|물구나무|사주|비판")
+    return _SOFT_NOISE.search(title) is not None or _COLUMN_BYLINE.search(title) is not None
 _EVENT_VERB = re.compile(r"중단|해킹|유출|사임|납입|청문|재가")
 
 
@@ -621,6 +677,13 @@ def stress_tag(title):
         return "stabilizer"
     if re.search(r"gpt\s*[- ]?\s*6", title, re.I) and re.search(r"cyber|사이버", title, re.I):
         return "model-cyber"
+    if re.search(r"비서실장|chief of staff", title, re.I) and re.search(r"교체|replace", title, re.I):
+        return "staff-cos"
+    # The closing rebound, not the opening print. 출발/개장 stays its own story.
+    if (re.search(r"나스닥|Nasdaq|반도체지수|필라델피아", title, re.I)
+            and re.search(r"반등|급등|↑|오른", title)
+            and not re.search(r"출발|개장", title)):
+        return "us-rebound"
     if _STRESS_REACTION.search(title):
         return None
     # "반도체" alone is not the tape: an oil headline can mention chips in passing.
@@ -641,6 +704,36 @@ def stress_tag(title):
 
 def event_verbs(title):
     return set(_EVENT_VERB.findall(title or ""))
+
+
+def bill_names(title):
+    """The law's own name. 국회 and 통과 are not a name, so two bills stay apart."""
+    names = set()
+    for m in re.finditer(r"[가-힣]{2,16}법(?:안)?", title or ""):
+        w = re.sub(r"안$", "", m.group())
+        if len(w) >= 3 and w not in {"법률"}:
+            names.add(w)
+    return names
+
+
+def offices(title):
+    """부처+직위. 법무장관 and 국세청장 are different posts."""
+    found = set()
+    for m in re.finditer(r"([가-힣]{2,6})?\s*(장관|청장|수석|총리|실장)", title or ""):
+        prefix = re.sub(r"[부의]$", "", m.group(1) or "")
+        if len(prefix) >= 2:
+            found.add(prefix + m.group(2))
+    return found
+
+
+_APPOINT_SKIP = {"대통령", "이재명", "트럼프", "국민의힘", "민주당", "정부", "국회", "후보", "후보자"}
+
+
+def appointment_people(title):
+    """The nominee, not the president who named them."""
+    return {e for e in named_entities(title or "")
+            if len(e) >= 3 and e not in _APPOINT_SKIP and not e.startswith("후보")
+            and not e.endswith(("장관", "청장", "수석", "총리", "실장", "부"))}
 
 
 def _quote_jaccard(a, b):
@@ -763,6 +856,10 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         rsess = rec[12] if len(rec) > 12 else session_signature(rtitle)
         if now() - rfs > win:
             continue
+        # A reaction or a column does not join the event it is talking about,
+        # and it cannot become that event's displayed headline.
+        if soft_noise(title) != soft_noise(rtitle):
+            continue
         same_topic = rtopic == topic
         # 보상 / 사망 / 피소 / ETF flows are a different development in either direction.
         if (salient ^ rsal) & new_facts:
@@ -775,7 +872,24 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         ents = subset_anchors | {"btc", "eth", "nk", "krindex"}
         # Binance's compensation and Polymarket's compensation are different incidents.
         # A single selloff tape may name the index in one headline and a chipmaker in another.
-        same_tape = stress_tag(title) and stress_tag(title) == stress_tag(rtitle) and stress_tag(title) != "summit"
+        tag_early, rtag_early = stress_tag(title), stress_tag(rtitle)
+        # Different laws, or a different post and a different person, are not one tape
+        # even when both headlines say 국회 통과 or 지명.
+        if tag_early == "bill" and rtag_early == "bill":
+            left, right = bill_names(title), bill_names(rtitle)
+            if left and right and not (left & right):
+                continue
+        if tag_early == "nomination" and rtag_early == "nomination":
+            same_post = bool(offices(title) & offices(rtitle)) or bool(
+                appointment_people(title) & appointment_people(rtitle))
+            if not same_post:
+                continue
+        same_tape = bool(tag_early and tag_early == rtag_early and tag_early not in {"summit", "bill", "nomination"})
+        if tag_early == "bill" and rtag_early == "bill":
+            same_tape = bool(bill_names(title) & bill_names(rtitle))
+        if tag_early == "nomination" and rtag_early == "nomination":
+            same_tape = bool(offices(title) & offices(rtitle)) or bool(
+                appointment_people(title) & appointment_people(rtitle))
         if (core_new & ents) and (core_old & ents) and not (core_new & ents & core_old) and not same_tape:
             continue
         shared = core_new & core_old
@@ -823,10 +937,15 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         session_hit = _session_compatible(sess, rsess)
         quote_hit = _quote_jaccard(title, rtitle) >= dedup.get("quote_jaccard", 0.34)
         tag, rtag = stress_tag(title), stress_tag(rtitle)
-        stress_hit = bool(tag and tag == rtag and tag != "summit")
+        stress_hit = bool(tag and tag == rtag and tag not in {"summit", "bill", "nomination"})
         if tag == "summit" and rtag == "summit":
             # Same meeting only when the place or guest is shared. The office title is not a place.
             stress_hit = bool(entities & rentities)
+        if tag == "bill" and rtag == "bill":
+            stress_hit = bool(bill_names(title) & bill_names(rtitle))
+        if tag == "nomination" and rtag == "nomination":
+            stress_hit = bool(offices(title) & offices(rtitle)) or bool(
+                appointment_people(title) & appointment_people(rtitle))
         # A repeated halt, leak, resignation, or payment can name the company in
         # every headline, so the name is no longer "rare". The shared verb keeps
         # it to one event. Ordinary words never become names.
