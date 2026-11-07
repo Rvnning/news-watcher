@@ -236,7 +236,9 @@ def test_opinion_noise_and_foreign_politics():
     ):
         assert not watcher.noise_title(title), title
 
-    assert screen("푸틴 러시아 대통령, 대 유럽 전쟁 준비 발언", "politics") is None
+    # A third-country president with no Korea/US anchor is off this beat. 방한 and 정상회담 stay.
+    assert screen("푸틴 러시아 대통령, 대 유럽 전쟁 준비 발언", "politics") == "offtopic"
+    assert screen("'비리 의혹' 페냐 파라과이 대통령 탄핵 파면…피의자 전락", "politics") == "offtopic"
     assert screen("에르도안 튀르키예 대통령 국빈방한…3일 李대통령과 정상회담", "politics") is None
     assert screen("李대통령, 6일 동티모르 대통령과 정상회담", "politics") is None
     assert screen("코스피 실적 전망", "markets") is None
@@ -461,6 +463,127 @@ def test_tapes_cluster_and_reactions_stay_under_scout():
     con.close()
 
 
+NOV7 = [
+    ("정탐", "markets", "미국 10월 고용 16.5만 명 증가...금리 인상 전망 강화"),
+    ("정탐", "politics", "Trump says Stephen Miller to replace Susie Wiles as White House chief of staff"),
+    ("정탐", "ai_tech", "[속보] 미래에셋증권도 해킹…고객·임직원 정보 일부 유출"),
+    ("오탐", "markets", "뉴욕증시, AI주 저가 매수에 혼조 마감…나스닥 1.09%↑"),
+    ("정탐", "markets", "서학개미, 국내증시 급락장속 11월 첫주 美주식 2.6조 폭풍 매수"),
+    ("정탐", "politics", "Secret Service arrests man near White House after he said he heard voices telling him to kill Trump"),
+    ("오탐", "politics", "[속보] 한동훈 “이재명 공소취소용 특검법은 ‘특권법’…대통령 위한 1인 특권계급 생겨”"),
+    ("오탐", "markets", "[속보]\"`블루웨이브 쇼크`에 세계증시 시총 하루만에 4800조 원 증발\""),
+    ("오탐", "politics", "국민의힘 \"대통령 인사 전횡 막장의 끝…이용철 지명 철회하라\""),
+    ("오탐", "politics", "연평부대 15년 만에 위문열차 공연…이재명 대통령 “장병 목소리 귀 기울일 것”"),
+    ("오탐", "politics", "이재명 대통령, 연평부대 위문열차 공연에 “장병들의 작은 바람도 하나씩 실현”"),
+    ("오탐", "politics", "이 대통령 \"K-단감 중국 첫 수출…우리 농가에 새로운 기회\""),
+    ("정탐", "politics", "[속보] 국힘, 서울 도심서 장외집회…장동혁 \"李대통령 탄핵해야\""),
+    ("오탐", "markets", "박용진의 '코스피 1000만원 매수'...덮을 수 없는 증시 폭락"),
+    ("정탐", "markets", "뉴욕증시, 혼조 출발… 급락했던 기술주 반등"),
+    ("정탐", "crypto", "미국 재무부·Fed, 소액 비트코인·암호화폐 거래 추적 계획 철회"),
+    ("오탐", "politics", "Trump to tape ‘60 Minutes’ interview after GOP midterm rout"),
+    ("정탐", "crypto", "Bitcoin price dips under $75K as crypto markets miss tech-stock rebound"),
+    ("오탐", "crypto", "Strive buys 15,124 Bitcoin in October, closes in on top treasury holders"),
+    ("오탐", "politics", "Stephen Miller replaces Susie Wiles as Trump's White House chief of staff after GOP's midterm defeat"),
+    ("오탐", "politics", "트럼프, 민주당 AI 놓고 충돌·백악관 비서실장 교체...뉴욕 증시 반등"),
+    ("오탐", "crypto", "Bitcoin, Ethereum, and XRP Face Further Price Drops Amid Crypto Market Sell-Off"),
+    ("정탐", "markets", "뉴욕증시, AI 기술주 폭락 후 저가 매수세…나스닥 1.1%↑"),
+    ("오탐", "markets", "증시 폭락에도 나 홀로 폭등…제주항공 37% 뛰자 증권가 '돌변' - 머니투데이"),
+    ("오탐", "ai_tech", "[속보] AI 기술주 저가 매수세 유입, 미국 반도체지수 4.2% 급등"),
+    ("오탐", "politics", "'비리 의혹' 페냐 파라과이 대통령 탄핵 파면…피의자 전락"),
+    ("정탐", "ai_tech", "반도체 지자체, 내년 법인지방소득세 최대 약 12배로 늘 전망"),
+    ("오탐", "politics", "[속보] 박지원 “‘대통령의 Y’ 성공적…6시간 수면도 DJ 닮아”"),
+    ("오탐", "politics", "[속보] 국민 “與, 대통령 범죄 혐의 덮기 위해 국회를 사법 파괴 소굴로 만들어”"),
+    ("오탐", "politics", "[속보] 국민의힘 “162조 미래대응기금은 미래약탈기금”…이재명 정부 재정정책 맹공"),
+    ("오탐", "politics", "이 대통령, 연평도 위문열차 부활에…\"장병의 작은 바람도 하나씩 실현\""),
+    ("오탐", "crypto", "‘Extreme Fear’ Hits Bitcoin for the First Time in 3 Months as BTC Plummets"),
+    ("정탐", "ai_tech", "[속보] '수능' AI 안경 부정행위 경보에 메타·삼성·구글도 덩달아 긴장"),
+    ("정탐", "crypto", "[ETF 플로우] 비트코인(BTC) ETF 5,618억 순유출…이더리움(ETH)도 1,271억 빠져"),
+    ("오탐", "crypto", "Binance recovery, US crypto bill talks, Bitcoin ETF exits | Weekly recap"),
+]
+
+
+def test_nov7_true_stories_stay_and_reactions_drop():
+    """2026-11-07 scout labels. Rallies stay. Demands, visits, and foreign presidencies do not."""
+    assert sum(v == "정탐" for v, _t, _s in NOV7) == 13
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+
+    def scout(title, topic, cluster_n=4):
+        got, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": got, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    for verdict, topic, title in NOV7:
+        if verdict == "정탐":
+            assert not watcher.soft_noise(title), title
+            assert not watcher.noise_title(title), title
+            got, kw = watcher.classify(title, topic)
+            assert watcher.passes_relevance(got, kw, title), title
+            assert scout(title, topic) >= 8, (title, scout(title, topic))
+        else:
+            got, kw = watcher.classify(title, topic)
+            capped = watcher.soft_noise(title) or watcher.noise_title(title) or not watcher.passes_relevance(got, kw, title)
+            assert capped or watcher.stress_tag(title) in {"staff-cos", "us-rebound"}, title
+            if watcher.soft_noise(title):
+                assert scout(title, topic, 6) <= 7.4, title
+
+    # A downtown rally is the event. A slogan that only says 장외투쟁 is not.
+    rally = "[속보] 국힘, 서울 도심서 장외집회…장동혁 \"李대통령 탄핵해야\""
+    assert not watcher.soft_noise(rally)
+    assert scout(rally, "politics", 3) >= 9
+    assert scout("국힘, 장외투쟁으로 여론전", "politics", 4) <= 7.4
+
+    # Demanding a nomination be withdrawn is not the nomination.
+    assert watcher.soft_noise("국민의힘 \"이용철 지명 철회하라\"")
+    assert not watcher.soft_noise("[속보] 이재명 대통령, 법무부 장관 후보자에 이용철 지명")
+    assert not watcher.soft_noise("미국 재무부, 소액 비트코인 거래 추적 계획 철회")
+
+    # Two laws, two posts. The same law and the same post still meet.
+    assert not (watcher.bill_names("간호법안 국회 본회의 통과") & watcher.bill_names("조작기소특검법 국회 통과"))
+    assert watcher.bill_names("조작기소 특검법안 국회 통과") & watcher.bill_names("조작기소 특검법 본회의 통과")
+    assert not (watcher.offices("교육부 장관 후보자 김철수 지명") & watcher.offices("법무부 장관 후보자 이용철 지명"))
+    assert watcher.offices("법무부 장관 후보자에 이용철 지명") & watcher.offices("법무장관 이용철 지명")
+
+    extra = [
+        ("politics", "[속보] 이재명 대통령, 간호법안 국회 본회의 통과"),
+        ("politics", "[속보] 이재명 대통령, 예산법안 국회 본회의 통과"),
+        ("politics", "[속보] 이재명 대통령, 교육부 장관 후보자에 김철수 지명"),
+        ("politics", "[속보] 이재명 대통령, 법무부 장관 후보자에 이용철 지명"),
+    ]
+    batch = [(topic, title) for _v, topic, title in NOV7] + extra
+    for i, (topic, title) in enumerate(batch):
+        watcher.process(con, src(topic), [item(title, url=f"https://ex.example/n7-{i}", publisher=f"P{i}")], recent, stats)
+    rows = con.execute("SELECT title, score FROM items").fetchall()
+    kept = [r[0] for r in rows]
+    for verdict, topic, title in NOV7:
+        if verdict != "정탐":
+            continue
+        if watcher.stress_tag(title) in {"staff-cos", "us-rebound"}:
+            continue
+        assert any(title[:18] in k or k[:18] in title for k in kept), title
+    assert not any("파라과이" in t for t in kept)
+    assert sum("chief of staff" in t or "비서실장" in t for t in kept) == 1, kept
+    assert sum("나스닥" in t or "반도체지수" in t for t in kept) == 1, kept
+    for title, score in rows:
+        if "chief of staff" in title or "비서실장" in title or "나스닥" in title or "반도체지수" in title:
+            assert score >= 8, (score, title)
+    assert any("혼조 출발" in t for t in kept)
+    assert any("간호법" in t for t in kept) and any("예산법" in t for t in kept)
+    assert any("교육부" in t for t in kept) and any("법무부" in t for t in kept)
+    assert sum("위문" in t for t in kept) >= 1  # stored, under the scout line
+    for title, score in con.execute("SELECT title, score FROM items"):
+        if "위문" in title or "철회하라" in title or "소굴" in title or "Extreme Fear" in title:
+            assert score <= 7.4, (score, title)
+        if "장외집회" in title:
+            assert score >= 8, (score, title)
+    con.close()
+
+
 def test_nov2_holdout_keeps_true_stories():
     """Afternoon of 2026-11-02 is held out. True stories in that slice stay stored."""
     import json
@@ -528,4 +651,5 @@ if __name__ == "__main__":
     test_labeled_day_holdout()
     test_nov2_holdout_keeps_true_stories()
     test_tapes_cluster_and_reactions_stay_under_scout()
+    test_nov7_true_stories_stay_and_reactions_drop()
     print("ok")
