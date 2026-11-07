@@ -398,6 +398,69 @@ def test_labeled_day_holdout():
         watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG = saved
 
 
+def test_tapes_cluster_and_reactions_stay_under_scout():
+    """One tape per crash, vote, and appointment. Reactions stay under the scout line."""
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    titles = [
+        ("markets", "[속보] 증시 급락에 코스피 서킷브레이커 발동…5천피 밑으로"),
+        ("markets", "[속보] 코스피 '서킷브레이커' 발동...5000피 붕괴"),
+        ("ai_tech", "[속보] 반도체주 추락…삼성전자 9%·SK하이닉스 11%대 급락"),
+        ("markets", "[속보] 정부, 증시 급락에 긴급 대응‥신용융자 담보비율 의무 3개월 면제"),
+        ("markets", "[속보] F4 \"증시 변동성 확대하면 시장안정 추가 조치\""),
+        ("politics", "[속보] 조작기소 특검법안 여당 주도 국회 통과"),
+        ("politics", "[속보] 조작기소 특검법 여권 주도로 국회 본회의 통과"),
+        ("politics", "국힘 \"조작특검으로 대통령 셀프면죄\"…특검법 반대 여론전"),
+        ("politics", "[속보] 이재명 대통령, 법무부 장관 후보자에 이용철 지명"),
+        ("politics", "[속보] 이 대통령, 법무장관 이용철…국세청장 안덕수 지명"),
+        ("politics", "[속보] 이 대통령, KBS 사장 후보자 인사청문요청안 재가"),
+        ("crypto", "비트코인, 7만6000달러 하회…기술주 급락에 약세"),
+        ("crypto", "Bitcoin Slumps Below US$76,000 as the selloff deepens"),
+        ("crypto", "비트코인 ETF 4억3020만달러 순유출"),
+        ("crypto", "가상자산 거래소 고팍스, 해킹 위협에 입출금 매매 중단"),
+        ("crypto", "고팍스, 해킹 예고 협박에 가상자산 거래 전면 중단"),
+        ("ai_tech", "오픈AI, 해킹 예방하는 보안 모델 GPT-6 사이버 공개"),
+        ("ai_tech", "오픈AI, 해킹 취약점을 찾는 GPT-6 Cyber 공개"),
+    ]
+    for i, (topic, t) in enumerate(titles):
+        watcher.process(con, src(topic), [item(t, url=f"https://ex.example/tape{i}", publisher=f"S{i}")], recent, stats)
+    kept = [r[0] for r in con.execute("SELECT title FROM items ORDER BY id").fetchall()]
+    assert sum("서킷브레이커" in t or "반도체주" in t for t in kept) == 1, kept
+    assert any("담보비율" in t for t in kept), kept
+    assert any("시장안정" in t for t in kept), kept
+    assert sum("특검" in t and "통과" in t for t in kept) == 1, kept
+    assert any("여론전" in t for t in kept), kept
+    assert sum("지명" in t for t in kept) == 1, kept
+    assert any("청문" in t for t in kept), kept
+    assert sum("76000" in t.replace(",", "") or "7만6000" in t or "76,000" in t for t in kept) == 1, kept
+    assert any("순유출" in t for t in kept), kept
+    assert sum("고팍스" in t for t in kept) == 1, kept
+    assert sum("GPT-6" in t for t in kept) == 1, kept
+
+    def scout(title, topic, cluster_n=1):
+        _topic, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": topic, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    # Two outlets of the same crash clear the breaking line. A reaction does not, however many outlets repeat it.
+    assert scout("[속보] 코스피 서킷브레이커 발동…5천피 붕괴", "markets", 2) >= 9
+    assert scout("[속보] 정부, 증시 급락에 신용융자 담보비율 의무 3개월 면제", "markets", 2) >= 9
+    assert scout("[속보] 한동훈, 코스피 5000선 붕괴에 대통령이 직접 답하라", "politics", 6) <= 7.4
+    assert watcher.stress_tag("[속보]민주 압승·유가 급락에 다우 3% 급등…반도체는 약세") is None
+    assert watcher.stress_tag("[속보] 코스피 서킷브레이커 발동") == "kr-selloff"
+    assert scout("증시급락 전문가 긴급진단", "markets", 4) <= 7.4
+    assert scout("DoorDash to Acquire Instacart | Tech Today", "ai_tech", 3) <= 7.4
+    assert scout("국민은행 아동수당통장 출시…최고 연 3.1% 금리", "markets", 3) <= 7.4
+    tape = con.execute("SELECT score FROM items WHERE title LIKE '%서킷브레이커%'").fetchone()
+    assert tape[0] >= 8, tape
+    con.close()
+
+
 def test_nov2_holdout_keeps_true_stories():
     """Afternoon of 2026-11-02 is held out. True stories in that slice stay stored."""
     import json
@@ -464,4 +527,5 @@ if __name__ == "__main__":
     test_reprint_outside_24h_window()
     test_labeled_day_holdout()
     test_nov2_holdout_keeps_true_stories()
+    test_tapes_cluster_and_reactions_stay_under_scout()
     print("ok")

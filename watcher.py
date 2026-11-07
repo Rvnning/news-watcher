@@ -536,8 +536,14 @@ _TAPE_WORD = re.compile(r"%|개장|마감|장중|등락|상승|하락|급등|급
 
 
 def specific_numbers(title):
-    """Decimals and long figures. Years and round budget totals are not one story."""
+    """Decimals and long figures. Years and round budget totals are not one story.
+
+    7만6000 and 76,000 are the same print, so a 만-grouped figure is expanded first.
+    """
     raw = (title or "").replace(",", "").replace("，", "")
+    raw = re.sub(r"(\d+)만(\d+)?", lambda m: str(int(m.group(1)) * 10000 + int(m.group(2) or 0)), raw)
+    raw = re.sub(r"(?<![A-Za-z0-9])(\d+(?:\.\d+)?)\s*[Kk]\b",
+                 lambda m: str(int(float(m.group(1)) * 1000)), raw)
     out = set()
     for m in _SPEC_NUM.finditer(raw):
         s = m.group()
@@ -545,6 +551,96 @@ def specific_numbers(title):
             continue
         out.add(s)
     return out
+
+
+# A reaction, a column, or a product pitch. These stay in the store but cannot
+# reach the score band the scout reads (8) or the breaking line (9).
+_SOFT_ROUNDUP = re.compile(r"Tech Today|이\s*시각 주요", re.I)
+_SOFT_HARD_ACT = re.compile(
+    r"통과|지명|청문|재가|서킷\s*브레이커|사이드\s*카|담보비율|면제|시장안정|"
+    r"거래.?중단|매매.?중단|입출금|전면.?중단|서비스.?중단|유출|사임|납입|지지율|"
+    r"해킹|hack|breach",
+    re.I)
+_SOFT_NOISE = re.compile(
+    r"답하라|여론전|장외투쟁|셀프면죄|사유화|물구나무|라방|사주|규탄|긴급진단|긴급 설문|리서치센터|"
+    r"마켓뷰|마켓인사이드|We Asked|Which Hits|what[- ]if|저항선|지지선|\b2030\b|악수|통장|박람회|의무화|"
+    r"간담회|숏\s*베팅|하방\s*위험|급등\s*이유|폭락\s*경고|목표주가|목표가|목표치|지킬까|적금|"
+    r"Why\s+\S+(?:\s+\S+){0,6}\s+(?:Surging|Soaring|Rising|Falling)",
+    re.I)
+_BREAKING_MARK = re.compile(r"\[속보\]|【속보】|\bBREAKING\b|\bJUST IN\b", re.I)
+
+
+def soft_noise(title):
+    """True when the headline is commentary, a reaction, or a pitch.
+
+    A roundup and a party reaction stay under the scout line even if a desk
+    stamps [속보] on them. A bill, a nomination, a trading halt, or a leak
+    in the same headline keeps the full score.
+    """
+    if not title:
+        return False
+    if _SOFT_ROUNDUP.search(title):
+        return True
+    if _STRESS_REACTION.search(title) and not _SOFT_HARD_ACT.search(title):
+        return True
+    if _BREAKING_MARK.search(title) or _SOFT_HARD_ACT.search(title):
+        return False
+    return _SOFT_NOISE.search(title) is not None
+
+
+_STRESS_REACTION = re.compile(r"답하라|여론전|장외|라방|셀프|사유화|물구나무|사주|비판")
+_EVENT_VERB = re.compile(r"중단|해킹|유출|사임|납입|청문|재가")
+
+
+def stress_tag(title):
+    """One tag per tape. A reaction is not the tape, and a policy response is its own tape.
+
+    A bill headline that also mentions the opposition protest still belongs to the vote.
+    """
+    if not title:
+        return None
+    if re.search(r"지명", title) and re.search(r"장관|청장|수석|총리", title):
+        return "nomination"
+    if re.search(r"특검", title) and re.search(r"통과|상정|필리버스터|표결|처리", title):
+        return "bill"
+    if re.search(r"통과", title) and re.search(r"법안|국회|법 ", title):
+        return "bill"
+    if re.search(r"정상회담", title):
+        return "summit"
+    if re.search(r"ETF|etf", title) and re.search(r"유출|outflow", title, re.I):
+        return "etf-flow"
+    if re.search(r"지지율|국정지지", title):
+        return "approval"
+    if re.search(r"사임|사퇴", title) and re.search(r"대통령", title):
+        return "resign"
+    if re.search(r"전기요금|전력요금", title) and re.search(r"데이터센터", title):
+        return "power"
+    if re.search(r"담보비율|반대매매", title):
+        return "margin"
+    if re.search(r"\bF4\b|시장안정", title):
+        return "stabilizer"
+    if re.search(r"gpt\s*[- ]?\s*6", title, re.I) and re.search(r"cyber|사이버", title, re.I):
+        return "model-cyber"
+    if _STRESS_REACTION.search(title):
+        return None
+    # "반도체" alone is not the tape: an oil headline can mention chips in passing.
+    if re.search(r"코스피|코스닥|나스닥|삼성전자|SK하이닉스|반도체주", title) and re.search(
+            r"서킷\s*브레이커|사이드\s*카|급락|폭락|붕괴|투매|깨져|무너", title):
+        return "kr-selloff"
+    if re.search(r"반도체\s*(?:급락|폭락|투매|붕괴)", title):
+        return "kr-selloff"
+    if re.search(r"코스피|코스닥", title) and re.search(
+            r"(?:[5-9]|1\d)(?:\.\d+)?\s*%\s*(?:내린|하락|급락|폭락|밀린)", title):
+        return "kr-selloff"
+    # The same crash, rewritten around the round number instead of the word 급락.
+    if re.search(r"코스피|코스닥", title) and re.search(r"5,?000|5천(?:피|선)|오천피", title) and re.search(
+            r"붕괴|깨|무너|턱걸이|와르르|검은|급락|폭락|투매", title):
+        return "kr-selloff"
+    return None
+
+
+def event_verbs(title):
+    return set(_EVENT_VERB.findall(title or ""))
 
 
 def _quote_jaccard(a, b):
@@ -678,7 +774,9 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         core_new, core_old = salient - new_facts, rsal - new_facts
         ents = subset_anchors | {"btc", "eth", "nk", "krindex"}
         # Binance's compensation and Polymarket's compensation are different incidents.
-        if (core_new & ents) and (core_old & ents) and not (core_new & ents & core_old):
+        # A single selloff tape may name the index in one headline and a chipmaker in another.
+        same_tape = stress_tag(title) and stress_tag(title) == stress_tag(rtitle) and stress_tag(title) != "summit"
+        if (core_new & ents) and (core_old & ents) and not (core_new & ents & core_old) and not same_tape:
             continue
         shared = core_new & core_old
         union = core_new | core_old
@@ -724,16 +822,25 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         number_hit = bool(nums and rnums and (nums & rnums)) and same_topic and not sessions_clash
         session_hit = _session_compatible(sess, rsess)
         quote_hit = _quote_jaccard(title, rtitle) >= dedup.get("quote_jaccard", 0.34)
-        if not same_topic and not content_hit and not session_hit and not quote_hit:
+        tag, rtag = stress_tag(title), stress_tag(rtitle)
+        stress_hit = bool(tag and tag == rtag and tag != "summit")
+        if tag == "summit" and rtag == "summit":
+            # Same meeting only when the place or guest is shared. The office title is not a place.
+            stress_hit = bool(entities & rentities)
+        # A repeated halt, leak, resignation, or payment can name the company in
+        # every headline, so the name is no longer "rare". The shared verb keeps
+        # it to one event. Ordinary words never become names.
+        verb_hit = bool(event_verbs(title) & event_verbs(rtitle)) and any(len(e) >= 3 for e in shared_names)
+        if not same_topic and not content_hit and not session_hit and not quote_hit and not stress_hit and not verb_hit:
             # Same event on two beats: the Nasdaq drop on the tech feed and the markets feed.
             cross = len(shared) >= 3 or bool(shared & {"nasdaq", "intel", "ustech", "krindex", "binance", "altman"})
             if not cross:
                 continue
-        if salient_hit or title_hit or content_hit or number_hit or session_hit or quote_hit:
+        if salient_hit or title_hit or content_hit or number_hit or session_hit or quote_hit or stress_hit or verb_hit:
             score = len(shared) + (1.5 if "binance" in rsal and "hack" in salient else 0) + sj
-            if content_hit or number_hit or session_hit or quote_hit:
+            if content_hit or number_hit or session_hit or quote_hit or stress_hit or verb_hit:
                 score += 1 + len(distinctive) + max(gj, cjac)
-            if number_hit or session_hit or quote_hit:
+            if number_hit or session_hit or quote_hit or stress_hit or verb_hit:
                 score += 1
             if title_hit:
                 score += j
@@ -785,6 +892,9 @@ def score_item(row, src_weight, kw, eng, cluster_n):
         s -= 2; reasons.append("old-2")
     if row["topic"] == "other":
         s -= 3; reasons.append("offtopic-3")
+    # Commentary, party reactions, and product pitches stay stored, under the scout line.
+    if soft_noise(row.get("title") or ""):
+        s = min(s, 7.4); reasons.append("softcap")
     return round(s, 2), " ".join(reasons), age_h
 
 
@@ -912,7 +1022,9 @@ def process(con, src, items, recent, stats):
                         old_ent = rec[8] if len(rec) > 8 else set()
                         shared_ent = (old_ent & entities) if old_ent and entities else (old_ent or entities)
                         old_nums = rec[11] if len(rec) > 11 else set()
-                        kept_nums = (old_nums & specific_numbers(title)) if old_nums else specific_numbers(title)
+                        new_nums = specific_numbers(title)
+                        # The displayed headline may be the first copy that actually prints the figure.
+                        kept_nums = (old_nums & new_nums) or new_nums or old_nums
                         kept_sess = _merge_session(rec[12] if len(rec) > 12 else None, session_signature(title))
                         recent[i] = (target, lang, toks, rec[3], rec[4], salient, content, grams,
                                      shared_ent, rec[9] if len(rec) > 9 else publisher,
