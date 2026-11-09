@@ -329,8 +329,13 @@ def _local_gov_blurb(title):
     return bool(m) and not m.group(1).endswith(_LOCAL_GOV_SKIP)
 
 
-def noise_title(title, url=""):
+def noise_title(title, url="", publisher=""):
     if url and _OPINION_URL.search(url):
+        return True
+    # A personal blog reposting an old flash is not a wire.
+    if publisher and re.search(r"blog|블로그", publisher, re.I):
+        return True
+    if url and re.search(r"blog\.naver|m\.blog\.naver", url, re.I):
         return True
     if _local_gov_blurb(title):
         return True
@@ -354,7 +359,7 @@ def breaking_in_title(title):
 # there is still a third-country story. 방한·정상회담·이재명·트럼프 keep the visit.
 _KR_US_ANCHOR = re.compile(
     r"이재명|윤석열|트럼프|Trump|북한|한미|국민의힘|국힘|민주|여당|야당|백악관|White House|Congress|"
-    r"미국|한국|대한민국|방한|순방|정상회담|李|김정은|특검|검찰|GOP|Democrats|Republicans|"
+    r"미국|한국|대한민국|방한|순방|정상회담|李|김정은|특검|GOP|Democrats|Republicans|"
     r"Senate|중간선거|midterm|White House",
     re.I)
 _FOREIGN_PRESIDENT = re.compile(r"([가-힣]{3,8})\s*대통령")
@@ -605,8 +610,9 @@ _SQUABBLE = re.compile(
 _QUOTE_MARK = re.compile(r"[\"“”‘']")
 # A column shape: a series mark, a weekly bracket, a forecast label, a streak stat.
 _COLUMN_WRAP = re.compile(
-    r"[①②③④⑤⑥⑦⑧⑨⑩]|\[이번\s*주|\bForecast\b|Straight Days|희비|"
-    r"\bfor \d+ Years\b|\b[Pp]unishes\b|\blame duck\b|Volatile\s+\S+\s+Week",
+    r"[①②③④⑤⑥⑦⑧⑨⑩]|\[이번\s*주|\[오늘의|\bForecast\b|\bWeekly Report\b|Straight Days|희비|"
+    r"\bfor \d+ Years\b|\b[Pp]unishes\b|\blame duck\b|Straight Weeks|Volatile\s+\S+\s+Week|"
+    r"\bWhat Happens\b|\bhints?\b|\bplan to\b|\bkidding\b|\bdefiant\b|\bReflects on\b|\bclouds\b",
     re.I)
 # Outlook endings. A leak or a passed bill in the same headline is still the event.
 _OUTLOOK = re.compile(
@@ -647,6 +653,85 @@ def _rally_event(title):
     return bool(_RALLY.search(title)) and not _party_talk(title)
 
 
+# A party or a politician whose only act is speech. A vote, a nomination, a
+# hearing, an investigation, a ruling, or a rally that is actually held stays.
+_SPEECH_ACT = re.compile(r"규탄|비판|요구|공세|주장|논평|사과해야|사과하라")
+_INSTITUTION_ACT = re.compile(
+    r"통과|표결|지명|청문|수사|판결|구형|선고|집회|시위|체포|구속|해임|사임|임명|"
+    r"지시|지지율|합의|후보|점검|시행|착수|압류|강제집행|선포|(?<![가-힣])기소(?![가-힣])")
+_PARTY_SUBJECT = re.compile(r"국민의힘|국힘|민주당|개혁신당|더불어민주")
+_PRES_QUOTE = re.compile(r"(?:이재명|李|이)\s*대통령\s*[,，]?\s*[\"“]")
+_PROTOCOL = re.compile(r"기념식|오찬|접견|격려|축사|치사|만찬|환담|예방|의 날")
+
+
+def _speech_only(title):
+    """Party talk or a ceremonial remark, not a decision."""
+    if not title:
+        return False
+    # A reception is the schedule even when it mentions an earlier agreement.
+    if _PROTOCOL.search(title) and re.search(r"대통령", title):
+        return True
+    if _INSTITUTION_ACT.search(title):
+        return False
+    if _SPEECH_ACT.search(title):
+        return True
+    if _PARTY_SUBJECT.search(title) and _QUOTE_MARK.search(title):
+        return True
+    if _PRES_QUOTE.search(title):
+        return True
+    # "김종인 “…" is someone speaking. A named office (후보, 청문) already returned.
+    if re.search(r"(?<![가-힣])[가-힣]{3,4}\s*[\"“](?=\S)", title) and not re.search(
+            r"미사일|피격|발사|폭격|침공|공격|해킹|hack|사고|사망|화재|통과|지명|청문", title, re.I):
+        return True
+    return False
+
+
+def _market_print(title):
+    """An intraday index, a daily FX print, or a daily bond yield. The close stays."""
+    if re.search(r"마감|종가", title or ""):
+        return False
+    if re.search(r"개장|장초반|장 초반|장중", title or ""):
+        return True
+    if re.search(r"코스피|코스닥", title or "") and re.search(r"사수|보합권", title or ""):
+        return True
+    if (re.search(r"환율|원달러|원·달러", title or "")
+            and re.search(r"하락|상승|강세|약세|원대", title or "")
+            and not re.search(r"개입|투입|방어", title or "")):
+        return True
+    if re.search(r"국고채", title or "") and re.search(r"금리", title or ""):
+        return True
+    return False
+
+
+def _pitch_or_forecast(title):
+    """A product launch, a broker note, or a conference. Not a ruling or a hack."""
+    if re.search(r"해킹|hack|사고|리콜|사망|파산|제재", title or "", re.I):
+        return False
+    if re.search(r"출시|파트너\s*선정|업무협약|\bMOU\b|학술대회|보강\s*예정", title or ""):
+        return True
+    if re.search(r"증권|씨티", title or "") and re.search(r"전망|피벗|시기상조|인하|인상|리스크", title or ""):
+        if not re.search(r"실적|영업이익|적자|제재|수사|압수", title or ""):
+            return True
+    if re.search(r"(?:증권|씨티)\s*[\"“]", title or "") and not re.search(r"수사|압수|제재", title or ""):
+        return True
+    if re.search(r"증권", title or "") and re.search(r"적자|영업손실", title or ""):
+        return True
+    if re.search(r"상속", title or "") and re.search(r"촉구|공론화|공감대|사각지대", title or ""):
+        return True
+    if re.search(r"\d+\s*%", title or "") and re.search(r"효율", title or ""):
+        return True
+    if re.search(r"인사", title or "") and re.search(r"바꾼|바뀌|교체|이끈다", title or ""):
+        return True
+    if re.search(r"못했다|발목", title or "") and re.search(r"증시|코스피", title or ""):
+        if not re.search(r"중단|해킹|사고", title or ""):
+            return True
+    if re.search(r"확률", title or "") and re.search(r"\d+\s*%", title or ""):
+        return True
+    if re.search(r"구형|징역", title or "") and not re.search(r"해킹|hack|개인정보", title or "", re.I):
+        return True
+    return False
+
+
 def _local_promo(title):
     """A province, a city agency, or a regulator announcing a plan or a class."""
     if re.search(r"규제자유특구|금융교육|배후도시|관문도시", title or ""):
@@ -668,6 +753,8 @@ def soft_noise(title):
         return False
     if _rally_event(title):
         return False
+    if _speech_only(title) or _market_print(title) or _pitch_or_forecast(title):
+        return True
     if _COLUMN_WRAP.search(title):
         return True
     if _SOFT_ROUNDUP.search(title) or (_RECAP_STAT.search(title) and "증발" in title):
@@ -741,7 +828,7 @@ def stress_tag(title):
         return "bill"
     if re.search(r"정상회담", title):
         return "summit"
-    if re.search(r"ETF|etf", title) and re.search(r"유출|outflow", title, re.I):
+    if re.search(r"ETF|etf", title) and re.search(r"유출|이탈|outflow|\bsold\b", title, re.I):
         return "etf-flow"
     if re.search(r"지지율|국정지지", title):
         return "approval"
@@ -759,12 +846,12 @@ def stress_tag(title):
         return "staff-cos"
     # Same offer, whether the wire says 대변인직 제안 or "offered the press secretary job".
     if re.search(r"대변인|press secretary|spokesman", title, re.I) and re.search(
-            r"제안|offer|offered|decline|taps?\b|임명|지명|역할|\brole\b|\bjob\b|for press secretary", title, re.I):
+            r"제안|offer|offered|decline|taps?\b|naming|임명|지명|역할|\brole\b|\bjob\b|for press secretary", title, re.I):
         return "press-sec"
     # Same order to investigate, in Korean or English.
     if (re.search(r"법무부|DOJ|Justice Department", title, re.I)
             and re.search(r"조사|probe|look into", title, re.I)
-            and re.search(r"지시|orders?|urges|call for|targets?", title, re.I)):
+            and re.search(r"지시|orders?|urges|call for|targets?|directs?", title, re.I)):
         return "doj-probe"
     # Same summons. 보안 책임자 and CISO are the same seat.
     if re.search(r"CISO|보안\s*책임자", title, re.I) and re.search(r"소집", title):
@@ -772,6 +859,23 @@ def stress_tag(title):
     cfo = _cfo_tag(title)
     if cfo:
         return cfo
+    # The closing print only. Opens and midday ticks are not this tape.
+    if (re.search(r"코스피|코스닥", title)
+            and re.search(r"마감|턱걸이", title)
+            and not re.search(r"개장|장초반|장중", title)):
+        return "kr-close"
+    # One slide. A hack, an ETF flow, or a seizure is a different act.
+    # The slide has to be the coin's, not a stock that mentions Bitcoin later.
+    if (re.search(
+            r"(?:비트코인|Bitcoin|\bBTC\b).{0,32}(?:하회|하락|급락|약세|Slides|Tumbles|holds below|Flash Crash)"
+            r"|(?:Slides|Tumbles|Flash Crash).{0,16}(?:Bitcoin|\bBTC\b|비트코인)", title, re.I)
+            and not re.search(r"해킹|hack|ETF|유출|outflow|이탈|강제집행|압류", title, re.I)):
+        return "btc-slide"
+    if re.search(r"강제집행|압류", title) and re.search(r"가상자산|코인|비트코인|Bitcoin", title, re.I):
+        return "crypto-seize"
+    if (re.search(r"이민|deport", title, re.I) and re.search(r"트럼프|Trump", title)
+            and re.search(r"중간선거|midterm", title, re.I)):
+        return "deport-midterm"
     # The closing rebound, not the opening print. 출발/개장 stays its own story.
     if (re.search(r"나스닥|Nasdaq|반도체지수|필라델피아", title, re.I)
             and re.search(r"반등|급등|↑|오른", title)
@@ -797,6 +901,32 @@ def stress_tag(title):
 
 def event_verbs(title):
     return set(_EVENT_VERB.findall(title or ""))
+
+
+_ACT_MAP = (
+    ("협력", "partner"), ("손잡", "partner"), ("동맹", "partner"), ("통합", "partner"),
+    ("투자", "invest"), ("상속", "inherit"),
+    ("강제집행", "seize"), ("압류", "seize"), ("매각", "seize"),
+)
+
+
+def _act_set(title):
+    """The thing being done, so two wordings of one partnership can meet."""
+    found = set()
+    text = title or ""
+    for word, key in _ACT_MAP:
+        if word in text:
+            found.add(key)
+    if re.search(r"\binvest", text, re.I):
+        found.add("invest")
+    return found
+
+
+# Words that name a sector, not a company, so they don't split one investment.
+_ACT_NAME_SKIP = {
+    "스타트업", "로봇", "반도체", "글로벌", "시장", "인프라", "시스템", "제조", "현장",
+    "한국형", "소버린", "국내", "확대", "데이터", "센터", "모델", "공개",
+}
 
 
 def bill_names(title):
@@ -985,6 +1115,11 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
                 appointment_people(title) & appointment_people(rtitle))
         if (core_new & ents) and (core_old & ents) and not (core_new & ents & core_old) and not same_tape:
             continue
+        # A bitcoin slide does not join a closing print, and a closing print does not
+        # join a stock rout, just because the words overlap. A tagged headline also
+        # does not climb onto an untagged story that merely shares a name.
+        if tag_early and tag_early != rtag_early:
+            continue
         shared = core_new & core_old
         union = core_new | core_old
         sj = (len(shared) / len(union)) if union else 0.0
@@ -1043,17 +1178,27 @@ def find_cluster(recent, lang, toks, topic, salient, content=None, grams=None, e
         # every headline, so the name is no longer "rare". The shared verb keeps
         # it to one event. Ordinary words never become names.
         verb_hit = bool(event_verbs(title) & event_verbs(rtitle)) and any(len(e) >= 3 for e in shared_names)
-        if not same_topic and not content_hit and not session_hit and not quote_hit and not stress_hit and not verb_hit:
+        # Same companies or people and the same act (a partnership, an investment,
+        # a seizure). One very common name is not enough.
+        acts = _act_set(title) & _act_set(rtitle)
+        shared_core = {e for e in shared_names if len(e) >= 3 and e not in _ACT_NAME_SKIP}
+        # Same company and the same act. Two names with no shared act are not one event,
+        # so a password bug and a bank pulling the same product stay apart.
+        name_act = bool(acts) and bool(shared_core)
+        if not same_topic and not content_hit and not session_hit and not quote_hit and not stress_hit and not verb_hit and not name_act:
             # Same event on two beats: the Nasdaq drop on the tech feed and the markets feed.
             cross = len(shared) >= 3 or bool(shared & {"nasdaq", "intel", "ustech", "krindex", "binance", "altman"})
             if not cross:
                 continue
-        if salient_hit or title_hit or content_hit or number_hit or session_hit or quote_hit or stress_hit or verb_hit:
+        if salient_hit or title_hit or content_hit or number_hit or session_hit or quote_hit or stress_hit or verb_hit or name_act:
             score = len(shared) + (1.5 if "binance" in rsal and "hack" in salient else 0) + sj
-            if content_hit or number_hit or session_hit or quote_hit or stress_hit or verb_hit:
+            if content_hit or number_hit or session_hit or quote_hit or stress_hit or verb_hit or name_act:
                 score += 1 + len(distinctive) + max(gj, cjac)
-            if number_hit or session_hit or quote_hit or stress_hit or verb_hit:
+            if number_hit or session_hit or quote_hit or stress_hit or verb_hit or name_act:
                 score += 1
+            # The same tape beats a headline that only shares a few words.
+            if stress_hit:
+                score += 10
             if title_hit:
                 score += j
             if score > bj:
@@ -1096,7 +1241,9 @@ def score_item(row, src_weight, kw, eng, cluster_n):
     if cluster_n > 1:
         cb = min(6.0, 1.5 * (cluster_n - 1))
         s += cb; reasons.append(f"cluster{cluster_n}+{cb:g}")
-    if age_h <= 1:
+    if row.get("reprint"):
+        reasons.append("reprint")
+    elif age_h <= 1:
         s += 1; reasons.append("fresh+1")
     elif age_h > 18:
         s -= 3; reasons.append("old-3")
@@ -1105,9 +1252,34 @@ def score_item(row, src_weight, kw, eng, cluster_n):
     if row["topic"] == "other":
         s -= 3; reasons.append("offtopic-3")
     # Commentary, party reactions, and product pitches stay stored, under the scout line.
-    if soft_noise(row.get("title") or ""):
+    if soft_noise(row.get("title") or "") or row.get("reprint"):
         s = min(s, 7.4); reasons.append("softcap")
     return round(s, 2), " ".join(reasons), age_h
+
+
+_STALE_TAGS = {"etf-flow", "us-rebound", "press-sec", "doj-probe"}
+
+
+def stale_event(con, title):
+    """The same act, or the same percent, already stored earlier than this window.
+
+    A live index level is not a reprint. A 4.2% semiconductor print the next day is.
+    """
+    if con is None or not title:
+        return False
+    fresh_cut = (now() - timedelta(hours=20)).isoformat()
+    old = (now() - timedelta(hours=96)).isoformat()
+    tag = stress_tag(title)
+    pcts = set(re.findall(r"(\d+\.\d+)\s*%", title))
+    if tag not in _STALE_TAGS and not pcts:
+        return False
+    for (prev,) in con.execute(
+            "SELECT title FROM items WHERE first_seen<? AND first_seen>?", (fresh_cut, old)):
+        if tag in _STALE_TAGS and stress_tag(prev) == tag:
+            return True
+        if pcts and pcts & set(re.findall(r"(\d+\.\d+)\s*%", prev or "")):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------- hooks / outputs
@@ -1168,7 +1340,7 @@ def process(con, src, items, recent, stats):
         title = clean_title(it["title"])
         if not title:
             continue
-        if noise_title(title, it.get("url") or ""):
+        if noise_title(title, it.get("url") or "", it.get("publisher") or ""):
             stats["noise"] += 1
             continue
         pub = it["published"] or now()
@@ -1261,7 +1433,8 @@ def process(con, src, items, recent, stats):
                 append_jsonl(item_record(con, target, "upgraded_breaking"))
             continue
         # new story
-        r = dict(title=title, source=src["name"], topic=topic, published=pub.isoformat())
+        r = dict(title=title, source=src["name"], topic=topic, published=pub.isoformat(),
+                 reprint=stale_event(con, title))
         cs = [it["publisher"] or src["name"]]
         sc, reason, age_h = score_item(r, src["weight"], kw, it["engagement"], 1)
         cur = con.execute("""INSERT INTO items(url_norm,url,title,lang,tokens,source,publisher,topic,published,first_seen,last_update,

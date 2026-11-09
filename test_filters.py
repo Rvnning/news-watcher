@@ -740,6 +740,135 @@ def test_nov2_holdout_keeps_true_stories():
         watcher.now, watcher.DB_PATH, watcher.CAND, watcher.BREAK_LOG, watcher.RUN_LOG = saved
 
 
+NOV9_TRUE = [
+    ("ai_tech", "Goldman Sachs Is Pulling Claude Code from Its Bankers and Traders"),
+    ("ai_tech", "앤트로픽, AI 데이터센터용 발전기 34억달러에 확보…전력 인프라 직접 투자"),
+    ("ai_tech", "Nvidia CEO Jensen Huang's letter to staff about affair"),
+    ("politics", "[속보] 이용철 법무후보 \"대통령과의 친분, 결격 사유 될 수 없어\""),
+    ("crypto", "Blumenthal sets Jan 4 deadline for Binance, Tether and Trump crypto firms as power shifts"),
+    ("markets", "日, 환율 방어에 7월 30일 하루 68조원 투입…사상 최대 개입"),
+    ("politics", "Trump Says Tough Deportation Policy Likely Hurt GOP in Midterms"),
+    ("ai_tech", "국산 AI 반도체, 엔비디아 GPU와 연결…SKT·리벨리온 3자 협력"),
+    ("ai_tech", "KDI \"AI투자 중심 양호한 성장…반도체 소득효과 가계엔 아직\""),
+    ("ai_tech", "엔비디아, AI 스타트업 리얼월드·업스테이지·모티프에 투자"),
+    ("politics", "국회 문턱 넘은 ‘조작기소 특검법’…靑 “내일 아닌 다음 주 국무회의 상정 예정”"),
+    ("crypto", "[속보] 비트코인 7만5000달러 하회…리플(XRP) 1.11달러대 약세, 이더리움·솔라나도 하락"),
+    ("politics", "[속보] 李대통령 지지율 35.9%…“증시 급락·금융시장 불안 영향” [리얼미터]"),
+    ("crypto", "구글·애플 로그인 가상자산 지갑 해킹...4만여개 지갑 자산 긴급 이동"),
+    ("ai_tech", "카카오모빌리티·엔비디아, AI 결합해 레벨4 자율주행 개발"),
+    ("crypto", "비트코인도 압류·매각 가능해진다…가상자산 강제집행 절차 시행"),
+    ("markets", "개인·외인 매도 확대…반등하던 코스피, 5000대 겨우 지켜 약보합 마감 - 머니투데이"),
+    ("markets", "금융위, “우대금리 축소 실태 연말까지 점검”"),
+]
+
+
+def test_nov9_true_stories_stay_and_same_act_is_one_line():
+    """2026-11-09. Speech, ceremony, and intraday prints stay under 8.
+
+    The same companies doing the same thing are one line. A different act is not.
+    A figure already stored the day before does not get a fresh point.
+    """
+    assert len(NOV9_TRUE) == 18
+
+    def scout(title, topic, cluster_n=4):
+        got, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": got, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    for topic, title in NOV9_TRUE:
+        assert not watcher.soft_noise(title), title
+        assert not watcher.noise_title(title), title
+        got, kw = watcher.classify(title, topic)
+        assert watcher.passes_relevance(got, kw, title), title
+        assert scout(title, topic) >= 8, (title, scout(title, topic))
+
+    assert watcher.soft_noise("[속보]“탈옥 프로젝트에 가담한 이재명”…국힘, 청와대 앞 최고위서 규탄")
+    assert watcher.soft_noise("개혁신당 \"李대통령, '조작기소 특검법' 거부권 행사해야\"")
+    assert watcher.soft_noise("[속보]김종인 “李대통령, 이대로면 트럼프와 같은 결과”")
+    assert watcher.soft_noise("[속보]李대통령 \"소방재원 안정적 확보, 국민 안전 위한 투자도 더욱 확대\"")
+    assert watcher.soft_noise("李대통령, 우즈벡 상원의장 접견…정상외교 합의 이행")
+    assert watcher.soft_noise("[속보] 코스피 0.50% 내린 5,034.20 개장")
+    assert watcher.soft_noise("원달러 환율, 달러 강세에도 1340원대로…4거래일만에 하락")
+    assert not watcher.soft_noise("日, 환율 방어에 7월 30일 하루 68조원 투입…사상 최대 개입")
+    assert watcher.soft_noise("삼성전자, 천장형 디지털 엑스레이 출시…AI로 촬영 효율 높인다")
+    assert watcher.soft_noise("부산서 반도체 제조기술 국제학술대회…AI 혁신·협력 논의")
+    assert watcher.soft_noise("[속보] '사드기밀 유출' 정의용 前 국가안보실장 징역 10개월 구형")
+    assert watcher.noise_title("[속보] 코스피, 1%대 오름세로 상승탄력 강화", "https://news.google.com/rss/x", "Naver Blog")
+    assert screen("탄핵 하루 만에 군부대 구금된 파라과이 대통령…검찰 \"혐의별 최대 징역 10년\"", "politics") == "offtopic"
+    assert not watcher.soft_noise("특권 폐지 법안 국회 통과")
+    assert not watcher.soft_noise("[속보] 공연 중 사고…관객 부상")
+
+    groups = [
+        ("ai_tech", "국산 AI 반도체, 엔비디아 GPU와 연결…SKT·리벨리온 3자 협력", [
+            "[AI픽] 국산 NPU, 엔비디아와 손잡고 글로벌 AI 시장 공략",
+            "SKT·엔비디아·리벨리온 'GPU·NPU 통합 시스템' 개발… 한국형 소버린 AI 인프라 구축",
+            "카카오모빌리티·엔비디아, AI 결합해 레벨4 자율주행 개발",
+        ]),
+        ("ai_tech", "엔비디아, AI 스타트업 리얼월드·업스테이지·모티프에 투자", [
+            "모티프, 엔비디아 투자 받는다…내년 1분기 새 AI 모델 공개",
+            "엔비디아, 국내 AI 스타트업 4곳 투자 확대…반도체부터 로봇까지",
+        ]),
+        ("crypto", "[속보] 비트코인 7만5000달러 하회", [
+            "비트코인, 1억200만원대로 하락",
+            "구글·애플 로그인 가상자산 지갑 해킹...4만여개 지갑",
+        ]),
+        ("crypto", "비트코인도 압류·매각 가능해진다…가상자산 강제집행 절차 시행", [
+            "가상자산 강제집행, 거래소 매각 절차도 시행",
+        ]),
+        ("markets", "개인·외인 매도 확대…반등하던 코스피, 5000대 겨우 지켜 약보합 마감", [
+            "[속보] 외인 7일째 폭풍 매도…코스피 5,000선 턱걸이",
+            "[속보] 코스피 0.50% 내린 5,034.20 개장",
+        ]),
+    ]
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    n = 0
+    for topic, lead, rest in groups:
+        for k in range(3):
+            watcher.process(con, src(topic), [item(lead, url=f"https://ex.example/n9-{n}", publisher=f"L{n}")], recent, stats)
+            n += 1
+        for title in rest:
+            watcher.process(con, src(topic), [item(title, url=f"https://ex.example/n9-{n}", publisher=f"R{n}")], recent, stats)
+            n += 1
+    rows = con.execute("SELECT title, score FROM items").fetchall()
+    titles = [t for t, _s in rows]
+    assert sum("리벨리온" in t or "손잡고" in t for t in titles) == 1, titles
+    assert sum("카카오모빌리티" in t for t in titles) == 1, titles
+    assert sum("리얼월드" in t or "투자 확대" in t or "투자 받는다" in t for t in titles) == 1, titles
+    assert sum("하회" in t or "1억" in t for t in titles) == 1, titles
+    assert sum("해킹" in t for t in titles) == 1, titles
+    assert sum("강제집행" in t for t in titles) == 1, titles
+    assert sum("마감" in t or "턱걸이" in t for t in titles) == 1, titles
+    assert sum("개장" in t for t in titles) == 1, titles
+    for title, score in rows:
+        if "개장" in title:
+            assert score <= 7.4, (score, title)
+        if "리벨리온" in title or "하회" in title or "마감" in title or "턱걸이" in title or "강제집행" in title:
+            assert score >= 8, (score, title)
+        if "카카오모빌리티" in title:
+            assert score >= 8 or scout(title, "ai_tech") >= 8, (score, title)
+
+    # Yesterday's 4.2% print does not get a fresh point today.
+    saved_now = watcher.now
+    try:
+        watcher.now = lambda: NOW - timedelta(hours=30)
+        old = "나스닥·필라델피아 반도체 지수 4.2% 반등…S&P 500도 상승"
+        watcher.process(con, src("markets"), [item(old, url="https://ex.example/old-semi", publisher="Old")], recent, stats)
+        watcher.now = lambda: NOW
+        fresh = "美 AI·반도체주 반등 성공…필라델피아 반도체 지수 4.2%↑ S&P 500 0.31%↑·나스닥 1.09%↑"
+        watcher.process(con, src("markets"), [item(fresh, url="https://ex.example/new-semi", publisher="New")], recent, stats)
+        sc = con.execute("SELECT score FROM items WHERE title=?", (fresh,)).fetchone()
+        assert sc is not None and sc[0] <= 7.4, sc
+    finally:
+        watcher.now = saved_now
+    con.close()
+
+
 if __name__ == "__main__":
     test_hangul_false_friends()
     test_relevance_gates()
