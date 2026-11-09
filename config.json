@@ -80,7 +80,7 @@
       "예금금리", "적금금리", "금리표",
       "표창", "경진대회", "장려상", "우수상",
       "오마이포토", "이모저모",
-      "\\| ?Opinion", "Explainer:", "what to expect", "week ahead", "Weekly recap", "weekly recap", "WATCH LIVE",
+      "\\| ?Opinion", "Explainer:", "what to expect", "week ahead", "Weekly recap", "weekly recap", "나침반", "WATCH LIVE",
       "Full interview", "Uptober", "Seasonal Returns", "Here's what", "Here's why",
       "price today", "forecast today",
       "Will [^\\n]{0,40}(?:Hit|Reach) \\$", "Tests? \\$[0-9]",

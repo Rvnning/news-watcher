@@ -241,6 +241,8 @@ def test_opinion_noise_and_foreign_politics():
     assert screen("'비리 의혹' 페냐 파라과이 대통령 탄핵 파면…피의자 전락", "politics") == "offtopic"
     assert screen("에르도안 튀르키예 대통령 국빈방한…3일 李대통령과 정상회담", "politics") is None
     assert screen("李대통령, 6일 동티모르 대통령과 정상회담", "politics") is None
+    # 국회 is where the prize was handed over. It is not a Korea/US stake.
+    assert screen("노벨평화상 라무스오르타 동티모르 대통령, 국회서 인터넷평화상 수상", "politics") == "offtopic"
     assert screen("코스피 실적 전망", "markets") is None
     assert screen("[속보] 반도체 10월 수출 564억달러…2개월 연속 500억달러대", "ai_tech") is None
     assert screen("[예능] 주말 결방 안내", "politics") == "noise"
@@ -584,6 +586,107 @@ def test_nov7_true_stories_stay_and_reactions_drop():
     con.close()
 
 
+NOV8_TRUE = [
+    "젤렌스키 \"북한 KN-23 미사일, 우크라 에너지 시설 공격에 사용돼\"",
+    "[속보] 트럼프, 데이나 화이트 UFC 회장에 백악관 대변인직 제안",
+    "미국발 AI 데이터센터 불안…국내 업계 \"사업 추진 문제없어\"",
+    "Binance Replaces CFO Kaiser Ng With Justin Yek Days After Record $6.3 Billion Crypto Hack",
+    "트럼프 \"민주, 법무장관 등 탄핵 위협\"…법무부에 조사 지시",
+    "Bitcoin ETFs Shed $1.3 Billion in a Week and XRP ETFs Saw Zero Inflows. Is Wall Street Done Buying Crypto for the Year?",
+    "반도체 호황에 기업 여윳돈 넘쳐…고액 예금 1천조 육박",
+    "AI 해킹에 금융권 ‘비상’… 금융당국, CISO 긴급 소집·전수점검 착수",
+    "챗GPT 국내 앱 이용자 1천800만명 첫 돌파…사용시간 2배로",
+    "[속보] 진성준 “한미 전작권 전환 기존 합의 유지”",
+    "조작기소특검 위헌 찬반 쟁점은…대통령이 본인 사건 특검 임명",
+]
+
+
+def test_nov8_squabbles_capped_and_same_act_clusters():
+    """2026-11-08. Party talk that mentions a rally stays capped. The rally does not.
+
+    A spokesperson offer, a justice-department order, a security-chief summons,
+    and a CFO exit each stay one line across Korean and English wording.
+    """
+    assert len(NOV8_TRUE) == 11
+
+    def scout(title, topic, cluster_n=4):
+        got, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": got, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    for title in NOV8_TRUE:
+        assert not watcher.soft_noise(title), title
+        assert not watcher.noise_title(title), title
+        got, kw = watcher.classify(title, "auto")
+        assert watcher.passes_relevance(got, kw, title), title
+        assert scout(title, got) >= 8, (title, scout(title, got))
+
+    rally = "[속보] 국힘, 서울 도심서 장외집회…장동혁 \"李대통령 탄핵해야\""
+    talk = "민주당, 국힘 장외집회 맹비난…\"이재명 대통령 탄핵 들먹인 국민의힘 제정신 아니다\""
+    assert not watcher.soft_noise(rally)
+    assert watcher.soft_noise(talk)
+    assert scout(talk, "politics", 6) <= 7.4
+    assert watcher.soft_noise("[속보] 한병도 \"대통령 탄핵 들먹인 국민의힘, 제정신 아냐…후안무치\"")
+    assert watcher.soft_noise("[속보]서영교 \"조작기소 특검법 대통령 이해충돌은 헛소리\"")
+    assert watcher.soft_noise("오세훈 \"국민연금으로 지방선거용 주식도박…대통령 사과해야\"")
+    assert not watcher.soft_noise("특권 폐지 법안 국회 통과")
+    assert not watcher.soft_noise("[속보] 공연 중 사고…관객 부상")
+    assert watcher.soft_noise("연평부대 위문열차 공연")
+    assert watcher.soft_noise("[美선거 산업여파] ① 텍사스도 블루웨이브…보조금 변동 촉각")
+    assert watcher.soft_noise("[이번주 증시] 코스피 반등 '시험대'")
+    assert watcher.soft_noise("채권금리 빠르게 내렸지만…'추격 매수냐 관망이냐'")
+    assert watcher.soft_noise("Bitcoin, Ether Forecast: hack rattles the tape")
+    assert watcher.soft_noise("Bitcoin Has Traded at a Discount on Coinbase for 61 Straight Days")
+    assert watcher.soft_noise("Bitcoin Slides Below US$76,000 in a Volatile Crypto Week")
+    assert not watcher.soft_noise("Bitcoin price dips under $75K as crypto markets miss tech-stock rebound")
+    assert watcher.soft_noise("AI데이터센터 확대 나선 충북도, 신규 규제자유특구 도전")
+    assert watcher.soft_noise("금감원, 군장병 금융교육 강화")
+
+    groups = [
+        ("politics", [
+            "[속보] 트럼프, 데이나 화이트 UFC 회장에 백악관 대변인직 제안",
+            "Trump says he offered White House press secretary job to Dana White",
+            "Breaking News: President Trump said he had offered Dana White the role of White House press secretary",
+            "Trump taps UFC boss as press secretary, urges criminal probes into Democrats",
+            "Trump's post-midterm plan? Dana White for press secretary",
+        ]),
+        ("politics", [
+            "트럼프 \"민주, 법무장관 등 탄핵 위협\"…법무부에 조사 지시",
+            "Trump orders DOJ to look into Democrats for 'threatening' people",
+            "Trump targets Slotkin in call for DOJ probe of alleged Democratic threats to Republicans",
+        ]),
+        ("ai_tech", [
+            "AI 해킹에 금융권 비상…금융당국, CISO 긴급 소집·전수점검 착수",
+            "가상자산업계 잇단 해킹에…금융당국, 보안 책임자 소집",
+            "가상자산 연쇄 해킹 비상…금감원, CISO 긴급 소집",
+            "금융당국, 가상자산업계 잇단 해킹에 보안책임자 소집",
+        ]),
+        ("crypto", [
+            "Binance Replaces CFO Kaiser Ng With Justin Yek Days After Record Crypto Hack",
+            "Binance CFO exits days after catastrophic crypto hack",
+        ]),
+    ]
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    n = 0
+    for topic, titles in groups:
+        for title in titles:
+            watcher.process(con, src(topic), [item(title, url=f"https://ex.example/n8-{n}", publisher=f"Q{n}")], recent, stats)
+            n += 1
+    kept = con.execute("SELECT title, score FROM items").fetchall()
+    titles = [t for t, _s in kept]
+    assert sum("대변인" in t or "press secretary" in t for t in titles) == 1, titles
+    assert sum("법무부" in t or "DOJ" in t for t in titles) == 1, titles
+    assert sum("CISO" in t or "보안 책임자" in t or "보안책임자" in t for t in titles) == 1, titles
+    assert sum("CFO" in t for t in titles) == 1, titles
+    con.close()
+
+
 def test_nov2_holdout_keeps_true_stories():
     """Afternoon of 2026-11-02 is held out. True stories in that slice stay stored."""
     import json
@@ -652,4 +755,5 @@ if __name__ == "__main__":
     test_nov2_holdout_keeps_true_stories()
     test_tapes_cluster_and_reactions_stay_under_scout()
     test_nov7_true_stories_stay_and_reactions_drop()
+    test_nov8_squabbles_capped_and_same_act_clusters()
     print("ok")

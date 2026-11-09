@@ -350,9 +350,11 @@ def breaking_in_title(title):
 
 # A country name sitting in front of 대통령, with no Korea/US anchor, is not this beat.
 # The word itself is not listed: 파라과이 and the next country are the same shape.
+# 국회 alone is a building, not a Korea/US stake. A foreign president collecting a prize
+# there is still a third-country story. 방한·정상회담·이재명·트럼프 keep the visit.
 _KR_US_ANCHOR = re.compile(
     r"이재명|윤석열|트럼프|Trump|북한|한미|국민의힘|국힘|민주|여당|야당|백악관|White House|Congress|"
-    r"미국|한국|대한민국|방한|순방|정상회담|李|김정은|특검|국회|검찰|GOP|Democrats|Republicans|"
+    r"미국|한국|대한민국|방한|순방|정상회담|李|김정은|특검|검찰|GOP|Democrats|Republicans|"
     r"Senate|중간선거|midterm|White House",
     re.I)
 _FOREIGN_PRESIDENT = re.compile(r"([가-힣]{3,8})\s*대통령")
@@ -590,9 +592,29 @@ _SOFT_NOISE = re.compile(
     r"Weekly recap|Extreme Fear|Further Price Drop|추가 하락",
     re.I)
 # A demand to undo an event is the reaction, even when the title also says 지명.
-_SOFT_DEMAND = re.compile(r"철회하라|맹공|소굴|약탈|전횡|막장|특권")
+# 특권 is not in this list: "특권 폐지 법안 통과" is the bill, not the taunt.
+_SOFT_DEMAND = re.compile(r"철회하라|맹공|소굴|약탈|전횡|막장")
 # A visit, a show, or a first shipment is the schedule, not the decision.
 _SOFT_PROMO = re.compile(r"위문|공연|첫\s*수출|첫\s*선적")
+# An accident during a show is the event. The show word does not cap it.
+_PROMO_INCIDENT = re.compile(r"사고|사망|부상|화재|압사|붕괴|중상|폭발")
+# Quoted blame, a rebuttal, or a demand for an apology. Not the rally itself.
+_SQUABBLE = re.compile(
+    r"맹비난|정면\s*반박|반박|헛소리|제정신|후안무치|염치|맞불|직격|"
+    r"사과해야|사과하라|사과\s*[·ㆍ]|사죄|망가져|치가\s*떨|다시해야|비난")
+_QUOTE_MARK = re.compile(r"[\"“”‘']")
+# A column shape: a series mark, a weekly bracket, a forecast label, a streak stat.
+_COLUMN_WRAP = re.compile(
+    r"[①②③④⑤⑥⑦⑧⑨⑩]|\[이번\s*주|\bForecast\b|Straight Days|희비|"
+    r"\bfor \d+ Years\b|\b[Pp]unishes\b|\blame duck\b|Volatile\s+\S+\s+Week",
+    re.I)
+# Outlook endings. A leak or a passed bill in the same headline is still the event.
+_OUTLOOK = re.compile(
+    r"할까|까(?:\.{2,}|…)|되나|에\s*촉각|운명|수 있나|지분\s*가치|접점|(?:매수|관망|매도)냐|"
+    r"\bhopes?\b|\bcalls out\b",
+    re.I)
+_LOCAL_PR_ACTOR = re.compile(r"(?:^|[\s,\"'“”‘’·])[가-힣]{2,4}(?:도|시|군)|도시공사|금감원|금융감독원")
+_LOCAL_PR_ACT = re.compile(r"규제자유특구|금융교육|배후도시|관문도시|도전|조성")
 # One listed name jumping, not the index. 반도체지수 and 나스닥 stay on the tape.
 _INDEX_PRINT = re.compile(
     r"코스피|코스닥|나스닥|Nasdaq|다우|Dow|S&P|비트코인|Bitcoin|BTC|이더리움|Ethereum|"
@@ -613,23 +635,61 @@ def _single_name_spike(title):
     return bool(_SINGLE_SPIKE.search(title)) and not _INDEX_PRINT.search(title)
 
 
+def _party_talk(title):
+    """A swipe at the other side. A quoted 겨냥 is the swipe, not a missile heading."""
+    if _SQUABBLE.search(title or ""):
+        return True
+    return bool("겨냥" in (title or "") and _QUOTE_MARK.search(title or ""))
+
+
+def _rally_event(title):
+    """The demonstration itself, not a quote attacking the people who held it."""
+    return bool(_RALLY.search(title)) and not _party_talk(title)
+
+
+def _local_promo(title):
+    """A province, a city agency, or a regulator announcing a plan or a class."""
+    if re.search(r"규제자유특구|금융교육|배후도시|관문도시", title or ""):
+        return True
+    return bool(_LOCAL_PR_ACTOR.search(title or "") and re.search(r"도전|조성", title or ""))
+
+
 def soft_noise(title):
     """True when the headline is commentary, a reaction, or a pitch.
 
     A roundup, a demand to undo a decision, and a ceremonial visit stay under
-    the scout line even if a desk stamps [속보] on them. A rally is the event.
-    A bill, a nomination, a trading halt, or a leak keeps the full score
-    unless the headline is only demanding that it be undone.
+    the scout line even if a desk stamps [속보] on them. A rally is the event
+    only when the headline says the rally is happening. Criticism that mentions
+    the rally stays under the line. A bill, a nomination, a trading halt, or a
+    leak keeps the full score unless the headline is only demanding that it be
+    undone. 특권 폐지 통과 and an accident during a performance keep the score.
     """
     if not title:
         return False
-    if _RALLY.search(title):
+    if _rally_event(title):
         return False
+    if _COLUMN_WRAP.search(title):
+        return True
     if _SOFT_ROUNDUP.search(title) or (_RECAP_STAT.search(title) and "증발" in title):
+        return True
+    if _party_talk(title) and not _SOFT_HARD_ACT.search(title):
+        return True
+    if re.search(r"(?:이번|다음)\s*주", title) and re.search(r"증시|환율", title):
+        return True
+    if re.search(r"특권", title) and not _SOFT_HARD_ACT.search(title):
+        return True
+    if re.search(r"출범", title) and re.search(r"회의", title) and not _SOFT_HARD_ACT.search(title):
         return True
     if _SOFT_DEMAND.search(title):
         return True
-    if _SOFT_PROMO.search(title) and not _SOFT_HARD_ACT.search(title):
+    if _SOFT_PROMO.search(title) and not _SOFT_HARD_ACT.search(title) and not _PROMO_INCIDENT.search(title):
+        return True
+    if _local_promo(title) and not _SOFT_HARD_ACT.search(title) and not _PROMO_INCIDENT.search(title):
+        return True
+    if _OUTLOOK.search(title) and not _SOFT_HARD_ACT.search(title):
+        return True
+    # A round AUM level breaking is a price stat. An ETF inflow or outflow is the flow.
+    if re.search(r"순자산", title) and re.search(r"깨|무너|붕괴", title) and not _SOFT_HARD_ACT.search(title):
         return True
     if _single_name_spike(title):
         return True
@@ -646,6 +706,24 @@ def soft_noise(title):
         return False
     return _SOFT_NOISE.search(title) is not None or _COLUMN_BYLINE.search(title) is not None
 _EVENT_VERB = re.compile(r"중단|해킹|유출|사임|납입|청문|재가")
+_CFO_STOP = {"after", "days", "record", "with", "president", "the", "following", "crypto",
+             "catastrophic", "billion", "white", "house", "hack", "before", "from"}
+
+
+def _cfo_tag(title):
+    """Firm plus the CFO exit. Two companies changing CFO the same day stay apart."""
+    if not title or not re.search(r"\bCFO\b|최고재무", title):
+        return None
+    if not re.search(r"\b(?:exits?|replaces?|replaced|steps down)\b|사임|교체|경질|사퇴", title, re.I):
+        return None
+    for word in re.findall(r"\b[A-Z][A-Za-z0-9]{2,}\b", title):
+        if word.lower() in _CFO_STOP or word.upper() == "CFO":
+            continue
+        return "cfo:" + word.lower()
+    hang = re.search(r"([가-힣]{2,10})\s*(?:의\s*)?(?:CFO|최고재무)", title)
+    if hang:
+        return "cfo:" + hang.group(1)
+    return "cfo"
 
 
 def stress_tag(title):
@@ -679,6 +757,21 @@ def stress_tag(title):
         return "model-cyber"
     if re.search(r"비서실장|chief of staff", title, re.I) and re.search(r"교체|replace", title, re.I):
         return "staff-cos"
+    # Same offer, whether the wire says 대변인직 제안 or "offered the press secretary job".
+    if re.search(r"대변인|press secretary|spokesman", title, re.I) and re.search(
+            r"제안|offer|offered|decline|taps?\b|임명|지명|역할|\brole\b|\bjob\b|for press secretary", title, re.I):
+        return "press-sec"
+    # Same order to investigate, in Korean or English.
+    if (re.search(r"법무부|DOJ|Justice Department", title, re.I)
+            and re.search(r"조사|probe|look into", title, re.I)
+            and re.search(r"지시|orders?|urges|call for|targets?", title, re.I)):
+        return "doj-probe"
+    # Same summons. 보안 책임자 and CISO are the same seat.
+    if re.search(r"CISO|보안\s*책임자", title, re.I) and re.search(r"소집", title):
+        return "ciso-call"
+    cfo = _cfo_tag(title)
+    if cfo:
+        return cfo
     # The closing rebound, not the opening print. 출발/개장 stays its own story.
     if (re.search(r"나스닥|Nasdaq|반도체지수|필라델피아", title, re.I)
             and re.search(r"반등|급등|↑|오른", title)
