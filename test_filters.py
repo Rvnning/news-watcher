@@ -869,6 +869,183 @@ def test_nov9_true_stories_stay_and_same_act_is_one_line():
     con.close()
 
 
+NOV13_TRUE = [
+    ("ai_tech", "[속보] 젠슨 황 엔비디아 CEO 전격 사임…33년 'AI 제국' 흔들리나"),
+    ("ai_tech", "Gemini 4 Hydrogen"),
+    ("ai_tech", "Microsoft’s Outlook email hit by new outage"),
+    ("ai_tech", "中 AI기업들 '美 규제 확대될라' 엔비디아칩 확보 총력전"),
+    ("politics", "[속보] 이 대통령 \"금융시장 불공정행위 엄정단속, 중수청에 별도 지시\""),
+    ("ai_tech", "트럼프, 엔비디아 차기 CEO에 팀 쿡 추천…글로벌 AI 업계 지각변동 예고"),
+    ("ai_tech", "[속보] KB캐피탈, 해킹에 개인정보 유출…임직원·고객 1800명 규모"),
+    ("politics", "[속보] 이 대통령 지지율 39%…민주 39%·국힘 26% [한국갤럽]"),
+    ("ai_tech", "삼성전자, ‘AI 열관리’ 판 키운다…美 데이터센터 냉각업체 ‘모딘’ 인수 추진"),
+    ("ai_tech", "[증시 레이더] 코스피 ↓ 5,290 마감⋯반도체 상승분 모두 반납"),
+    ("crypto", "Bitcoin Price Breaks Below $72K as $656M Liquidation Bloodbath Hits Crypto"),
+    ("markets", "美 연준, 2027년 기준금리 결정 FOMC 7번으로 축소…10월은 통화정책 전략 논의 집중"),
+    ("markets", "[뉴욕증시] 젠슨 황 퇴진·유가 급등, 하락 마감···AMD·브로드컴 '반사이익'"),
+    ("crypto", "Trump Sends First Bipartisan SEC and CFTC Nominees to Senate as Crypto Rules Loom"),
+    ("crypto", "미 법무부 “북한 탈취 가상자산 27억 달러 동결”…신종 해킹 수법도 공개"),
+    ("ai_tech", "AI 투자 여전히 뜨겁네…앤트로픽 IPO, 공모물량 6배 몰려"),
+    ("ai_tech", "젠슨 황 사임에 韓 AI 공급망 긴급 점검…GPU 26만장 확보 차질 없나"),
+    ("politics", "\"APEC 계기 미중러 정상회담 19일 개최…북한 논의 가능성\""),
+    ("crypto", "[속보] 비트코인 7만달러 무너졌다…6만9369달러 추락, 117억달러 숏 청산 가능성 주목"),
+    ("ai_tech", "美 당국 앨리스 황 '中 간첩' 결론 못 내…말레이, 엔비디아 반도체 우회 유출 조사"),
+    ("markets", "구다이글로벌, 코스피 상장 예비심사 신청…내년 상반기 IPO 목표"),
+    ("ai_tech", "[속보] 젠슨황 연인 앨리스 황, “中국가안전부 반도체팀 소속” [대만 자유시보]"),
+]
+
+NOV15_TRUE = [
+    ("crypto", "Binance Reopens 87 Crypto Networks After $6.3B Hack, Targets Full Withdrawals Next Week"),
+    ("crypto", "Crypto liquidations surge past $1.9 billion as Bitcoin nears $63,000"),
+    ("ai_tech", "[속보] 'AI 안경 의혹' 세무사 수석합격자 \"전자기기·생성형 AI로 부정행위 했다\""),
+    ("markets", "코스피 '빚투' 37% 삼전·닉스에 몰려…\"증시 변동성 키워\""),
+    ("ai_tech", "비반도체 수출도 두자릿수 성장…호주 1위·네덜란드 2위"),
+    ("crypto", "\"당하고 또 당했다\" 가상자산업계 5번째 해킹…코인원 수탁업체 뚫려"),
+    ("ai_tech", "[속보] 靑 \"AI 부정행위 엄중히 봐…오늘 정책실장 주재 대책회의\""),
+    ("markets", "나스닥 23시간 거래 초읽기…韓증시 '머니무브' 촉각"),
+    ("crypto", "거래소 해킹 잇따르자···금감원, 19일 가상자산업권 긴급회의 소집"),
+    ("ai_tech", "10월 ICT 수출 703억달러 역대 최대…AI 반도체가 성장 견인"),
+    ("crypto", "Bitcoin mining company MARA sells 13,597 BTC for $1.1 billion in six weeks"),
+]
+
+
+def test_nov13_and_nov15_true_stories_stay():
+    """2026-11-13 designed the rules. 2026-11-15 and the 11/09 list confirm them.
+
+    Every labeled true story stays at 8 or on the breaking line. The same act,
+    in another wording or another language, is one row. A question, an open
+    print, a trip itinerary, and a product pitch stay under 8.
+    """
+    assert len(NOV13_TRUE) == 22
+    assert len(NOV15_TRUE) == 11
+
+    def scout(title, topic, cluster_n=4):
+        got, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": got, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    for topic, title in NOV13_TRUE + NOV15_TRUE:
+        assert not watcher.soft_noise(title), title
+        assert not watcher.noise_title(title), title
+        got, kw = watcher.classify(title, topic)
+        assert watcher.passes_relevance(got, kw, title), (title, got, kw)
+        assert scout(title, topic) >= 8, (title, scout(title, topic))
+
+    # A cash close is markets even when the feed is tagged tech.
+    assert watcher.classify("[증시 레이더] 코스피 ↓ 5,290 마감⋯반도체 상승분 모두 반납", "ai_tech")[0] == "markets"
+    # Short "AI" in a farm outbreak is not the tech beat. A trade secret is not a breach.
+    flu = "전남 오리농장서 H5형 AI 항원 검출…방역 당국 살처분"
+    assert not watcher.keyword_in_text("AI", flu)
+    got, kw = watcher.classify(flu, "ai_tech")
+    assert not watcher.passes_relevance(got, kw, flu)
+    assert not watcher.keyword_in_text("유출", "영업비밀 유출 혐의로 송치")
+    assert watcher.keyword_in_text("유출", "해킹으로 개인정보 유출")
+
+    assert watcher.soft_noise("코스피, 5,450선 출발")
+    assert not watcher.soft_noise("뉴욕증시, 혼조 출발… 급락했던 기술주 반등")
+    assert watcher.soft_noise("원·달러 환율, 9원 오른 1,430원")
+    assert not watcher.soft_noise("日, 환율 방어에 하루 68조원 투입")
+    assert watcher.soft_noise("이번주 코스피, 반등할까")
+    assert watcher.soft_noise("[마켓스토리] 다음 주 나스닥 향배")
+    assert watcher.soft_noise("[AI픽] 엘리스그룹, 데이터센터 가동")
+    assert watcher.soft_noise("Ask HN: employees petition to bring the CEO back")
+    assert watcher.soft_noise("BlackRock ETF wallet moves 1,200 BTC to Coinbase Prime")
+    assert watcher.soft_noise("이 대통령, 내일 아세안 순방 출발")
+    assert not watcher.soft_noise("\"APEC 계기 미중러 정상회담 19일 개최…북한 논의 가능성\"")
+    assert watcher.soft_noise("비트코인 9만달러 재탈환")
+    assert not watcher.soft_noise("[속보] 비트코인 7만달러 무너졌다")
+
+    groups = [
+        ("markets", "[뉴욕증시] 젠슨 황 퇴진·유가 급등, 하락 마감", [
+            "[속보] 유가에 젠슨 황까지 뉴욕증시 일제히 하락…나스닥 0.4%↓",
+            "[속보] 뉴욕증시 혼조 마감…다우 +0.10%, S&P500 -0.40%, 나스닥 -0.91%",
+        ]),
+        ("crypto", "Bitcoin Price Breaks Below $72K as liquidations hit crypto", [
+            "[속보] 비트코인 7만달러 무너졌다",
+            "Bitcoin Slumps Below $70,000 as the selloff deepens",
+            "[속보] KB캐피탈, 해킹에 개인정보 유출",
+        ]),
+        ("ai_tech", "[속보] 젠슨 황 엔비디아 CEO 전격 사임", [
+            "[속보] 엔비디아, 임시 CEO에 콜레트 크레스 CFO 임명",
+            "NVIDIA Announces CEO Transition",
+            "젠슨 황 사임에 韓 AI 공급망 긴급 점검…GPU 확보 차질 없나",
+        ]),
+        ("politics", "[속보] 이 대통령 \"금융시장 불공정행위 엄정단속, 중수청에 별도 지시\"", [
+            "이 대통령, 거래소 찾아 자본시장 불공정 단속을 다시 말했다",
+        ]),
+        ("markets", "美 연준, FOMC 7번으로 축소", [
+            "연준, 기준금리 결정 FOMC를 7차례로 줄이기로",
+        ]),
+        ("markets", "구다이글로벌, 코스피 상장 예비심사 신청", [
+            "구다이글로벌 상장예심 청구",
+        ]),
+        ("ai_tech", "美 당국 앨리스 황 '中 간첩' 결론 못 내", [
+            "젠슨황 연인 앨리스 황, 中국가안전부 반도체팀 소속",
+        ]),
+        ("crypto", "\"당하고 또 당했다\" 코인원 수탁업체 해킹", [
+            "코인원 외주업체 해킹으로 입출금 중단",
+        ]),
+        ("ai_tech", "[속보] 세무사 수석합격자 \"생성형 AI로 부정행위 했다\"", [
+            "[속보] 세무사 수석, AI 부정행위 인정",
+            "[속보] 청와대, AI 부정행위 대책회의",
+        ]),
+    ]
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    n = 0
+    for topic, lead, rest in groups:
+        for _k in range(2):
+            watcher.process(con, src(topic), [item(lead, url=f"https://ex.example/w-{n}", publisher=f"L{n}")], recent, stats)
+            n += 1
+        for title in rest:
+            watcher.process(con, src(topic), [item(title, url=f"https://ex.example/w-{n}", publisher=f"R{n}")], recent, stats)
+            n += 1
+    titles = [t for (t,) in con.execute("SELECT title FROM items")]
+    assert sum("뉴욕증시" in t or "나스닥 0.4%" in t for t in titles) == 1, titles
+    assert sum("72K" in t or "7만달러" in t or "70,000" in t for t in titles) == 1, titles
+    assert sum("KB캐피탈" in t for t in titles) == 1, titles
+    assert sum("전격 사임" in t or "CEO Transition" in t or "임시 CEO" in t for t in titles) == 1, titles
+    assert sum("공급망" in t for t in titles) == 1, titles
+    assert sum("불공정" in t or "거래소" in t for t in titles) == 1, titles
+    assert sum("FOMC" in t or "차례" in t for t in titles) == 1, titles
+    assert sum("구다이" in t or "상장예심" in t for t in titles) == 1, titles
+    assert sum("간첩" in t or "국가안전부" in t for t in titles) == 1, titles
+    assert sum("코인원" in t for t in titles) == 1, titles
+    assert sum("부정행위" in t for t in titles) == 1, titles
+
+    con.close()
+
+    # The same summit, a day and a half later and in English, does not start a new scout line.
+    saved_now = watcher.now
+    tmp2 = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp2, "watcher.db")
+    watcher.CAND = os.path.join(tmp2, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp2, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp2, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    try:
+        base = NOW
+        watcher.now = lambda: base - timedelta(hours=40)
+        first = "\"APEC 계기 미중러 정상회담 19일 개최…북한 논의 가능성\""
+        watcher.process(con, src("politics"), [item(first, url="https://ex.example/apec-kr", publisher="KR")], recent, stats)
+        watcher.now = lambda: base
+        again = "Trump, Xi and Putin plan unprecedented joint meeting on APEC sidelines, White House and Kremlin say"
+        watcher.process(con, src("politics"), [item(again, url="https://ex.example/apec-en", publisher="EN")], recent, stats)
+        sc = con.execute("SELECT score, reason FROM items WHERE title=?", (again,)).fetchone()
+        assert sc is not None and sc[0] <= 7.4, sc
+        kept = con.execute("SELECT score, reason FROM items WHERE title LIKE '%19일 개최%'").fetchone()
+        assert kept is not None and "reprint" not in kept[1], kept
+    finally:
+        watcher.now = saved_now
+        con.close()
+
+
 if __name__ == "__main__":
     test_hangul_false_friends()
     test_relevance_gates()
@@ -885,4 +1062,6 @@ if __name__ == "__main__":
     test_tapes_cluster_and_reactions_stay_under_scout()
     test_nov7_true_stories_stay_and_reactions_drop()
     test_nov8_squabbles_capped_and_same_act_clusters()
+    test_nov9_true_stories_stay_and_same_act_is_one_line()
+    test_nov13_and_nov15_true_stories_stay()
     print("ok")
