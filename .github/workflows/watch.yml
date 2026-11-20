@@ -1,16 +1,19 @@
 name: news-watch
 on:
   schedule:
-    # GitHub often starts this late (hours, not minutes). The job does not
-    # depend on every tick: one run stays up for 5.5h and polls each slot itself.
+    # Backup only. GitHub often creates this hours late, or not at all.
+    # The live run polls each slot itself and starts its own successor.
     - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 permissions:
   contents: write
-# One writer per ref. A newer run (the next delayed cron, or a manual dispatch
-# on the same branch) cancels this one. The script treats that as a handoff:
-# it will not start a second push, and a push already in flight is a single
-# atomic ref update. See the loop step for the overlap rules.
+  # workflow_dispatch from this job. Push still does not start a new run:
+  # GITHUB_TOKEN pushes are not a workflow trigger.
+  actions: write
+# One writer per ref. A newer run (the successor dispatched below, a delayed
+# cron, or a manual dispatch on the same branch) cancels this one. The script
+# treats that as a handoff: it will not start a second push, and a push already
+# in flight is a single atomic ref update. See the loop step for the overlap rules.
 concurrency:
   group: news-watch-${{ github.ref }}
   cancel-in-progress: true
@@ -36,6 +39,9 @@ jobs:
         env:
           BREAK_LOG: state/breaking.log
           # WEBHOOK_URL is intentionally unset. fire_webhook() stays a no-op.
+          # Used only to dispatch this same workflow once, near the end of the
+          # stay-alive window. Not used for git push.
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -58,10 +64,17 @@ jobs:
             exit 1
           fi
 
-          DEADLINE=$(( $(date +%s) + MAX_SECONDS ))
+          JOB_START=$(date +%s)
+          DEADLINE=$(( JOB_START + MAX_SECONDS ))
           stop_requested=0
           in_critical=0
           child_pid=""
+          # How many times this job has asked GitHub to start the next run.
+          # Capped at 2 (one try, one retry on the way out). A job that has
+          # not yet lived 4h does not ask at all, so a fast failure cannot
+          # chain into another job.
+          dispatch_attempts=0
+          successor_ok=0
 
           # Kill pid and its children. timeout(1) is the direct child of a watch
           # cycle; signalling only timeout can leave watcher.py running.
@@ -246,6 +259,57 @@ jobs:
             return 1
           }
 
+          # Start the next run while this one is still inside its window.
+          # workflow_dispatch is the documented exception: a GITHUB_TOKEN may
+          # create that run. One run is still the only writer, because the new
+          # run uses the same concurrency group and cancels this one.
+          maybe_dispatch_successor() {
+            if [ "$stop_requested" = 1 ] || [ "$successor_ok" = 1 ]; then
+              return 0
+            fi
+            if [ "$dispatch_attempts" -ge 2 ]; then
+              return 0
+            fi
+            local now remaining lead min_age age code payload
+            now=$(date +%s)
+            remaining=$((DEADLINE - now))
+            lead=${WATCH_DISPATCH_LEAD_SECONDS:-900}
+            if [ "$lead" -gt 1200 ]; then lead=1200; fi
+            if [ "$lead" -lt 60 ]; then lead=60; fi
+            # Not yet close to the deadline. Cron, if it shows up, is the handoff.
+            if [ "$remaining" -gt "$lead" ]; then
+              return 0
+            fi
+            min_age=${WATCH_DISPATCH_MIN_AGE_SECONDS:-14400}
+            if [ "$min_age" -lt 0 ]; then min_age=0; fi
+            age=$((now - JOB_START))
+            if [ "$age" -lt "$min_age" ]; then
+              echo "successor not dispatched; age ${age}s < ${min_age}s"
+              return 0
+            fi
+            if [ -z "${GH_TOKEN:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ]; then
+              echo "successor not dispatched; GH_TOKEN or GITHUB_REPOSITORY missing" >&2
+              return 0
+            fi
+            dispatch_attempts=$((dispatch_attempts + 1))
+            payload=$(BRANCH="$BRANCH" python3 -c 'import json,os; print(json.dumps({"ref": os.environ["BRANCH"]}))')
+            echo "dispatching one successor on ${BRANCH} (remaining ${remaining}s, attempt ${dispatch_attempts})"
+            code=$(curl -sS -o /tmp/dispatch_body.txt -w "%{http_code}" \
+              -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/watch.yml/dispatches" \
+              -d "$payload") || code="000"
+            if [ "$code" = "204" ]; then
+              successor_ok=1
+              echo "successor dispatch accepted"
+              return 0
+            fi
+            echo "successor dispatch failed http=${code} body=$(head -c 300 /tmp/dispatch_body.txt 2>/dev/null || true)" >&2
+            return 0
+          }
+
           if [ "${WATCH_LIB_ONLY:-}" = "1" ]; then
             if [ "${BASH_SOURCE[0]}" != "$0" ]; then
               return 0
@@ -284,6 +348,7 @@ jobs:
           while true; do
             now=$(date +%s)
             if [ "$now" -ge "$DEADLINE" ]; then
+              maybe_dispatch_successor
               echo "stay-alive window ended; exiting cleanly"
               exit 0
             fi
@@ -330,7 +395,16 @@ jobs:
 
             wait_s=$(seconds_until_next_slot)
             remaining=$((DEADLINE - $(date +%s)))
+            # Ask for the next run before the last sleep, so a runner is
+            # usually up before this window ends. A cancel from that run is
+            # the normal handoff and does not dispatch again.
+            maybe_dispatch_successor
+            if [ "$stop_requested" = 1 ]; then
+              echo "handing off to the successor"
+              exit 0
+            fi
             if [ "$remaining" -le 0 ] || [ "$wait_s" -ge "$remaining" ]; then
+              maybe_dispatch_successor
               echo "next slot is outside the stay-alive window; exiting cleanly"
               exit 0
             fi
