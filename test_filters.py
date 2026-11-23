@@ -1046,6 +1046,156 @@ def test_nov13_and_nov15_true_stories_stay():
         con.close()
 
 
+# 2026-11-20 designed the rules. 2026-11-21 confirms them.
+NOV20_TRUE = [
+    ("markets", "[속보]뉴욕증시, 앤트로픽 상장 기대에 상승 출발…나스닥 1.90%↑"),
+    ("ai_tech", "[뉴욕증시-1보] 앤트로픽 상장은 매도 신호였나…2%대 급락 마감"),
+    ("ai_tech", "[속보] 삼성전자 사업부장, 반도체 메모리 황상준·모바일경험 최원준"),
+    ("ai_tech", "중국 반도체 막는다면서?…美, 엔비디아·AMD 칩 88만개 수출 승인"),
+    ("crypto", "금감원, 'AI 해킹' 대비 가상자산 CISO 소집…\"철저한 대비 필요 시점 \""),
+    ("politics", "[속보] 이 대통령 지지율 40%…민주 36%·국힘 28%[한국갤럽]"),
+    ("markets", "[속보] ‘SM 주가조작’ 혐의 카카오 김범수 2심도 무죄"),
+    ("ai_tech", "SK하이닉스, HBM 넘어 AI 시스템까지…차세대 메모리 기술 공개"),
+    ("markets", "검은 금요일 맞은 亞증시…韓·日·대만, 일제히 4∼6%대 급락"),
+    ("politics", "Trump administration moves to have lawsuit dismissed in challenge to Alaska's US Senate race"),
+    ("politics", "[속보] 與, '조희대 대법원장 탄핵' 당론 채택"),
+    ("politics", "\"수능 부정행위 일벌백계\"…李 대통령, 국가시험제도 전면 개편 지시"),
+    ("politics", "[속보] 민주유공자법, 여당 주도로 국회 본회의 통과"),
+    ("politics", "[속보] 이 대통령, 김종철 경찰청장 임명안 재가"),
+    ("crypto", "Crypto Selloff Drags Bitcoin To Below US$62,000, Ethereum Near US$1,750"),
+    ("ai_tech", "[속보] 앤트로픽 주가 111.5달러에 거래 시작"),
+    ("crypto", "Binance hack laundering ramps up as $149 million in bitcoin mixed through coinjoins: Elliptic"),
+    ("politics", "\"북한 김정은, 트럼프와의 만남에 가치 못 느껴\""),
+    ("ai_tech", "美 반도체 우회 규제에…中 문샷AI, 엔비디아 첨단칩 2000억원 계약 취소"),
+    ("markets", "[속보] 급락장에 코스피 이어 코스닥서도 매도 사이드카"),
+]
+NOV21_TRUE = [
+    ("crypto", "Bitcoin Drops Below $59K, Wiping Out $1.5B In Crypto Bets: MSTR, BMNR, ASST Stocks Extend Losses"),
+    ("markets", "AI 거품 공포에 뉴욕증시 급락…나스닥 5.28% 폭락"),
+    ("ai_tech", "코인 해킹에 ‘AI 카드’ 꺼낸 홍콩…코인 지갑·은행 계좌 함께 추적"),
+    ("ai_tech", "4년 만에 대중 무역흑자 돌아섰지만…반도체 빼면 적자 확대"),
+    ("ai_tech", "\"반도체 호황에도 파급 미미…10억원당 취업유발 2.4명\""),
+    ("markets", "대만, 증시 폭락에 공매도 규제 강화…23일부터 전일 종가 밑 매도 금지"),
+    ("politics", "소득 없었던 첫 미중러 정상회담...트럼프·푸틴 \"역사 만들었다\" 자화자찬"),
+    ("politics", "트럼프 “중간선거 패배에도 이란 공격 다시 결정할 것”…밴스 “대통령 지지가 내 임무\""),
+    ("politics", "與 \"조희대 대법원장 탄핵안 12월 3일 발의 추진\""),
+    ("politics", "[속보] 李대통령, 울산 AI데이터센터 찾아 “지방 중심 AI 투자로 균형 발전\""),
+    ("politics", "李대통령, 12월 트럼프·1월 다카이치 만난다…실용외교 보폭 확장"),
+]
+
+
+def test_nov20_and_nov21_true_stories_stay():
+    """2026-11-20 designed the rules. 2026-11-21 confirms them.
+
+    Every labeled true story stays at 8. The same appointment, the same
+    inspection, the same visit, and the same downward break are one row.
+    A later print, a denunciation, and a next-day retelling stay under 8.
+    """
+    assert len(NOV20_TRUE) == 20
+    assert len(NOV21_TRUE) == 11
+
+    def scout(title, topic, cluster_n=4):
+        got, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": got, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    for topic, title in NOV20_TRUE + NOV21_TRUE:
+        assert not watcher.soft_noise(title), title
+        assert not watcher.noise_title(title), title
+        got, kw = watcher.classify(title, topic)
+        assert watcher.passes_relevance(got, kw, title), (title, got, kw)
+        assert scout(title, topic) >= 8, (title, scout(title, topic))
+
+    rail = "[속보] 지하철 2호선 성수지선 양방향 운행중지…선로전환기 장애"
+    assert not watcher.keyword_in_text("장애", rail)
+    got, kw = watcher.classify(rail, "ai_tech")
+    assert not watcher.passes_relevance(got, kw, rail)
+    assert watcher.keyword_in_text("장애", "인천공항 네트워크 장애")
+
+    assert watcher.soft_noise("Trump urges Congress to pass a new farm bill")
+    assert not watcher.soft_noise("Trump taps UFC boss as press secretary, urges criminal probes into Democrats")
+    assert watcher.soft_noise("Bitcoin falls 3.57% to $56,814")
+    assert watcher.soft_noise("Bitcoin (BTC/USDT) Drops 1.02% in One Minute on Binance")
+    assert watcher.soft_noise("Crypto Today: Bitcoin risks breaking below $61K as Ethereum corrects")
+    assert not watcher.soft_noise("Bitcoin Drops Below $59K, Wiping Out $1.5B In Crypto Bets")
+    assert watcher.soft_noise("국힘, 광화문 집회서 李대통령 규탄")
+    assert not watcher.soft_noise("[속보] 국힘, 서울 도심서 장외집회…장동혁 \"李대통령 탄핵해야\"")
+    assert watcher.soft_noise("양승조 수공 사장, 호남 반도체 클러스터 물 공급 현장 점검")
+    assert not watcher.soft_noise("[속보] 이재명 대통령, 울산 SK 건설 현장 점검…AI 데이터센터")
+    assert watcher.soft_noise("삼성증권, 자문사 CEO 포럼 개최")
+    assert watcher.soft_noise("Anthropic employee claims general proof of the Riemann Hypothesis")
+    assert not watcher.soft_noise("뉴욕증시, 혼조 출발… 급락했던 기술주 반등")
+
+    groups = [
+        ("ai_tech", "[속보] 삼성전자 사업부장, 반도체 메모리 황상준·모바일경험 최원준", [
+            "[속보] 삼성전자 사장단 인사…전영현·노태문 '투톱' 체제 유지",
+            "삼성전자, 반도체 사장 3명 발탁…전영현·노태문 미래사업 전념",
+            "삼성전자 사장 승진 모두 반도체…기존 투톱에 성과·기술 방점",
+        ]),
+        ("crypto", "금감원, 'AI 해킹' 대비 가상자산 CISO 소집", [
+            "금감원, 가상자산사업자 28곳 보안 점검 강화",
+            "금감원, 가상자산사업자에 보안 강화 주문",
+        ]),
+        ("politics", "[속보] 李대통령, 울산 AI데이터센터 찾아 “지방 중심 AI 투자로 균형 발전”", [
+            "이재명 대통령, 울산 SK AI 데이터센터 방문",
+            "울산 AI데이터센터 찾은 이재명 대통령 [현장 화보]",
+            "SK, 울산서 AI 데이터센터 15GW 구상 첫발…성패 가를 변수는",
+        ]),
+        ("crypto", "Crypto Selloff Drags Bitcoin To Below US$62,000", [
+            "Bitcoin Drops Below $59K, Wiping Out $1.5B In Crypto Bets",
+            "비트코인, 4개월만에 6만달러선 붕괴",
+            "Bitcoin falls 3.57% to $56,814",
+        ]),
+    ]
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    n = 0
+    for topic, lead, rest in groups:
+        watcher.process(con, src(topic), [item(lead, url=f"https://ex.example/n20-{n}", publisher=f"L{n}")], recent, stats)
+        n += 1
+        for title in rest:
+            watcher.process(con, src(topic), [item(title, url=f"https://ex.example/n20-{n}", publisher=f"R{n}")], recent, stats)
+            n += 1
+    titles = [t for (t,) in con.execute("SELECT title FROM items")]
+    assert sum("삼성전자" in t for t in titles) == 1, titles
+    assert sum("금감원" in t and "가상자산" in t for t in titles) == 1, titles
+    assert sum("데이터센터" in t or "데이터 센터" in t for t in titles) == 1, titles
+    assert sum("62,000" in t or "59K" in t or "6만" in t or "3.57%" in t for t in titles) == 1, titles
+    shown = con.execute("SELECT title FROM items WHERE title LIKE '%62,000%' OR title LIKE '%59K%'").fetchone()
+    assert shown and "3.57%" not in shown[0]
+    con.close()
+
+    saved_now = watcher.now
+    tmp2 = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp2, "watcher.db")
+    watcher.CAND = os.path.join(tmp2, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp2, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp2, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    try:
+        base = NOW
+        watcher.now = lambda: base - timedelta(hours=30)
+        first = "\"북한 김정은, 트럼프와의 만남에 가치 못 느껴\""
+        watcher.process(con, src("politics"), [item(first, url="https://ex.example/nk-1", publisher="KR")], recent, stats)
+        before = con.execute("SELECT score, reason FROM items WHERE title LIKE '%가치 못 느껴%'").fetchone()
+        watcher.now = lambda: base
+        again = "김정은, 트럼프 대화제의 외면하고 교육공장으로"
+        watcher.process(con, src("politics"), [item(again, url="https://ex.example/nk-2", publisher="EN")], recent, stats)
+        sc = con.execute("SELECT score, reason FROM items WHERE title=?", (again,)).fetchone()
+        assert sc is not None and sc[0] <= 7.4, sc
+        kept = con.execute("SELECT score, reason FROM items WHERE title LIKE '%가치 못 느껴%'").fetchone()
+        assert kept == before and "reprint" not in kept[1], (before, kept)
+    finally:
+        watcher.now = saved_now
+        con.close()
+
+
 if __name__ == "__main__":
     test_hangul_false_friends()
     test_relevance_gates()
@@ -1064,4 +1214,5 @@ if __name__ == "__main__":
     test_nov8_squabbles_capped_and_same_act_clusters()
     test_nov9_true_stories_stay_and_same_act_is_one_line()
     test_nov13_and_nov15_true_stories_stay()
+    test_nov20_and_nov21_true_stories_stay()
     print("ok")

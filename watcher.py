@@ -173,6 +173,10 @@ def keyword_in_text(kw, text):
         return False
     if kw == "유출" and _TRADE_SECRET.search(text) and not re.search(r"해킹|개인정보|데이터", text):
         return False
+    # 장애 on a rail line is the switch, not a network outage. A server or an airport still counts.
+    if (kw == "장애" and re.search(r"지하철|선로|열차|철도|운행", text)
+            and not re.search(r"서버|네트워크|통신|클라우드|인터넷|거래소|시스템|항공|공항", text)):
+        return False
     if re.fullmatch(r"[\uac00-\ud7a3]+", kw):
         return hangul_keyword_in_text(kw, text)
     return kw_regex(kw).search(text) is not None
@@ -668,8 +672,17 @@ def _party_talk(title):
 
 
 def _rally_event(title):
-    """The demonstration itself, not a quote attacking the people who held it."""
-    return bool(_RALLY.search(title)) and not _party_talk(title)
+    """The demonstration itself, not a quote attacking the people who held it.
+
+    A denunciation (규탄) is the reaction. A protest at a product launch is not
+    the political rally the desk was holding.
+    """
+    if re.search(r"규탄", title or ""):
+        return False
+    if re.search(r"시위", title or "") and not re.search(r"집회", title or "") and re.search(
+            r"상장|개발중단", title or ""):
+        return False
+    return bool(_RALLY.search(title or "")) and not _party_talk(title)
 
 
 # A party or a politician whose only act is speech. A vote, a nomination, a
@@ -704,6 +717,10 @@ def _speech_only(title):
         return True
     if re.search(r"\b(tears into|blasts?|slams?|rips into)\b", title, re.I):
         return True
+    # Asking a legislature to pass a bill is the demand. The passage is the event.
+    if re.search(r"\burges?\b", title, re.I) and re.search(r"\b(?:pass|approve)\b", title, re.I):
+        if not re.search(r"\b(?:passed|passes|approved)\b", title, re.I):
+            return True
     return False
 
 
@@ -729,7 +746,45 @@ def _market_print(title):
     # A reclaim or a one-hour bounce is a tick. The break through a level is the move.
     if re.search(r"재탈환|일시\s*회복|코인시세|대비\s*반등", title or "") and not re.search(r"무너|하회|붕괴", title or ""):
         return True
-    if re.search(r"국고채", title or "") and re.search(r"금리", title or ""):
+    if re.search(r"국채|국고채", title or "") and re.search(r"금리", title or "") and not re.search(r"인상|인하|동결", title or ""):
+        return True
+    # Later prints of a coin that already broke: the minute tick, the hundredths
+    # move, the reclaim, the liquidation tally, the conditional, the wobble.
+    # The first round-level break (하회, 붕괴, Below) stays.
+    if re.search(r"비트코인|Bitcoin|\bBTC\b|이더리움|Ethereum", title or "", re.I):
+        if re.search(r"one minute|1분|분당", title or "", re.I):
+            return True
+        if (re.search(r"\d+\.\d{2}\s*%", title or "")
+                and re.search(r"\bfalls?\b|\bdrops?\b|하락", title or "", re.I)
+                and not re.search(r"하회|붕괴|무너|Below|마감", title or "", re.I)):
+            return True
+        if (re.search(
+                r"(?:비트코인|Bitcoin|\bBTC\b|이더리움|Ethereum).{0,24}(?:\brebounds?\b|\brecovers?\b)"
+                r"|(?:\brebounds?\b|\brecovers?\b).{0,24}(?:Bitcoin|\bBTC\b|비트코인)",
+                title or "", re.I)
+                and not re.search(r"하회|붕괴|무너|Below", title or "", re.I)):
+            return True
+        # A liquidation tally is a tick. "liquidations surge" is the break itself.
+        if re.search(r"청산|liquidation", title or "", re.I) and not re.search(
+                r"하회|붕괴|무너|Below|surge", title or "", re.I):
+            return True
+        if re.search(r"\brisks?\b|\bbraces?\b|점친|조짐|\bpanic\b|\bdump it\b", title or "", re.I):
+            return True
+        if re.search(r"휘청", title or "") and not re.search(r"하회|붕괴|무너|마감", title or ""):
+            return True
+        if (re.search(r"사상\s*최고|all-time|from its (?:high|peak)|below its|52-week high", title or "", re.I)
+                and re.search(r"폭락|하락|\bfalls?\b|\bdrops?\b|\bbelow\b", title or "", re.I)
+                and not re.search(r"하회|붕괴|마감|\$\s*\d", title or "", re.I)):
+            return True
+    # A futures or premarket print is not the cash close.
+    if re.search(r"\bpremarket\b|\bfutures\b", title or "", re.I) and re.search(
+            r"\btumbles?\b|\bdrops?\b|\bfalls?\b|\bslides?\b", title or "", re.I):
+        return True
+    if re.search(r"스테이블코인|stablecoin", title or "", re.I) and re.search(
+            r"시총|억달러|시가", title or "") and not re.search(
+            r"상장|발행|제재|해킹|디페그|depeg", title or "", re.I):
+        return True
+    if re.search(r"volatility gauge|getting nervous", title or "", re.I):
         return True
     return False
 
@@ -739,6 +794,11 @@ def _pitch_or_forecast(title):
     if re.search(r"해킹|hack|사고|리콜|사망|파산|제재", title or "", re.I):
         return False
     if re.search(r"출시|파트너\s*선정|업무협약|\bMOU\b|학술대회|보강\s*예정", title or ""):
+        return True
+    # A forum that was held, or a custodian swap, is the invitation. Not a ruling.
+    if re.search(r"포럼|인사이트|컨퍼런스", title or "") and re.search(r"개최|성료|열려", title or ""):
+        return True
+    if re.search(r"수탁|custodian", title or "", re.I) and re.search(r"결별|교체|변경|switch", title or "", re.I):
         return True
     if re.search(r"증권|씨티", title or "") and re.search(r"전망|피벗|시기상조|인하|인상|리스크", title or ""):
         if not re.search(r"실적|영업이익|적자|제재|수사|압수", title or ""):
@@ -888,6 +948,31 @@ def soft_noise(title):
         return True
     if _STRESS_REACTION.search(title) and not _SOFT_HARD_ACT.search(title):
         return True
+    # A denunciation, pressure for a vote that has not happened, a protocol visit,
+    # a photo essay, a correction, or an unverified claim. The rally announcement,
+    # the passage, and the nomination stay.
+    if re.search(r"규탄", title) and not re.search(r"통과|가결|당론|발의", title):
+        return True
+    if re.search(r"압박", title) and not re.search(r"통과|가결|당론|재가|임명|발의", title):
+        return True
+    if re.search(r"시위", title) and not re.search(r"집회", title) and re.search(r"상장|개발중단", title):
+        return True
+    if re.search(r"전통시장|시장을?\s*찾은", title) and re.search(r"대통령|장관", title):
+        if not re.search(r"데이터\s*센터|해킹|화재|사망", title):
+            return True
+    if re.search(r"현장\s*점검", title) and not re.search(r"데이터\s*센터|해킹|사고|화재|보안", title):
+        return True
+    if re.search(r"화보", title) and not re.search(r"해킹|사고|사망", title):
+        return True
+    if re.search(r"정정", title) and not re.search(r"통과|임명|해킹|기소|발의", title):
+        return True
+    if re.search(r"\bclaims?\b", title, re.I) and not re.search(
+            r"\b(?:sued|arrested|charged|indicted|passed|approved)\b|기소|체포|통과|해킹", title, re.I):
+        return True
+    if re.search(r"\bundervalued\b|\bovervalued\b|\blive updates\b|\bInstitutional\s*:", title, re.I):
+        return True
+    if re.search(r"^\[[^\]]*(?:위기|칼럼|전망)[^\]]*\]", title):
+        return True
     if _BREAKING_MARK.search(title) or _SOFT_HARD_ACT.search(title):
         return False
     return _SOFT_NOISE.search(title) is not None or _COLUMN_BYLINE.search(title) is not None
@@ -957,6 +1042,11 @@ def stress_tag(title):
             and re.search(r"지시|orders?|urges|call for|targets?|directs?", title, re.I)):
         return "doj-probe"
     # Same summons. 보안 책임자 and CISO are the same seat.
+    # One regulator inspection of the crypto sector: the summons and the later orders.
+    if (re.search(r"금감원|금융감독|금융당국", title)
+            and re.search(r"가상자산", title)
+            and re.search(r"소집|점검|주문|CISO|보안", title)):
+        return "ciso-call"
     if re.search(r"CISO|보안\s*책임자", title, re.I) and re.search(r"소집", title):
         return "ciso-call"
     cfo = _cfo_tag(title)
@@ -989,11 +1079,27 @@ def stress_tag(title):
         return "kr-close"
     # One slide. A seizure is a different act. An ETF outflow is tagged earlier.
     # The slide has to be the coin's, not a stock that mentions Bitcoin later.
+    # One downward break of the same coin. A later round number is the same move.
+    # A conditional (risks, 점친) is a forecast, not the break.
+    # The coin, then the move. A different asset that merely mentions Bitcoin
+    # ("OP drops, trailing Bitcoin") is not this tape. Below needs a price.
+    _after = (
+        r"하회|하락|급락|약세|무너|추락|붕괴|폭락|lowest|summer low|"
+        r"Slides|Tumbles|Slumped|Falls|Drops|Breaks Below|Slumps Below|"
+        r"Crashes|Implodes|holds below|tanks below|"
+        r"Below\s+(?:US)?\$|Below\s+\d{4,}|"
+        r"Flash Crash|liquidations?\s+surge"
+    )
+    _before = r"급락|하락|폭락|붕괴|하회|무너|Slides|Tumbles|Slumped|Crashes|Implodes|Flash Crash|liquidations?\s+surge"
     if (re.search(
-            r"(?:비트코인|Bitcoin|\bBTC\b).{0,48}(?:하회|하락|급락|약세|무너|추락|Slides|Tumbles|Slumped|Falls Below|Breaks Below|Slumps Below|Crashes|Implodes|holds below|Flash Crash|liquidations?\s+surge)"
-            r"|(?:급락|하락|폭락|Slides|Tumbles|Slumped|Falls Below|Breaks Below|Slumps Below|Crashes|Implodes|Flash Crash|liquidations?\s+surge).{0,48}(?:Bitcoin|\bBTC\b|비트코인)", title, re.I)
-            and not re.search(r"강제집행|압류", title)):
+            rf"(?:비트코인|Bitcoin|\bBTC\b).{{0,64}}(?:{_after})"
+            rf"|(?:{_before}).{{0,32}}(?:Bitcoin|\bBTC\b|비트코인)", title, re.I)
+            and not re.search(r"강제집행|압류|해킹|hack|breach", title, re.I)
+            and not re.search(r"\brisks?\b|\bbraces?\b|\brebounds?\b|\brecovers?\b|점친|조짐", title, re.I)):
         return "btc-slide"
+    # The same site visit, including the photo and the later analysis.
+    if re.search(r"울산", title) and re.search(r"데이터\s*센터", title):
+        return "site-visit"
     if re.search(r"강제집행|압류", title) and re.search(r"가상자산|코인|비트코인|Bitcoin", title, re.I):
         return "crypto-seize"
     if (re.search(r"이민|deport", title, re.I) and re.search(r"트럼프|Trump", title)
@@ -1033,6 +1139,8 @@ _ACT_MAP = (
     ("예비심사", "listing"), ("상장예심", "listing"), ("예심", "listing"),
     ("부정행위", "cheat"),
     ("점검", "review"), ("재확인", "review"),
+    ("인사", "appoint"), ("승진", "appoint"), ("발탁", "appoint"),
+    ("사업부장", "appoint"),
 )
 
 
@@ -1404,14 +1512,32 @@ def _older_titles(con, skip_id=None):
         yield prev
 
 
+def _snub_tag(title):
+    """The same refusal, restated. Not a stress tag: joining it would age the original row."""
+    if (re.search(r"김정은", title or "") and re.search(r"트럼프|Trump", title or "")
+            and re.search(r"만남|대화|외면|회담", title or "")):
+        return "nk-talk"
+    return None
+
+
 def stale_event(con, title, skip_id=None):
     """The same act, or the same percent, already stored earlier than this window.
 
     A live index level is not a reprint. A 4.2% semiconductor print the next day is.
-    The row being rescored is not evidence of itself.
+    The row being rescored is not evidence of itself. A snub repeated later the
+    same day is a reprint even inside the usual 20 hour gap, and it stays its own row.
     """
     if con is None or not title:
         return False
+    if _snub_tag(title):
+        cut = (now() - timedelta(hours=8)).isoformat()
+        old = (now() - timedelta(hours=96)).isoformat()
+        for iid, prev in con.execute(
+                "SELECT id, title FROM items WHERE first_seen<? AND first_seen>?", (cut, old)):
+            if skip_id is not None and iid == skip_id:
+                continue
+            if _snub_tag(prev):
+                return True
     tag = stress_tag(title)
     pcts = set(re.findall(r"(\d+\.\d+)\s*%", title))
     if tag not in _STALE_TAGS and not pcts:
@@ -1525,7 +1651,10 @@ def process(con, src, items, recent, stats):
                 eng = it["engagement"]; changed = True
             better = headline_rank(title) > headline_rank(row[0])
             # A pitch that retells the event joins the row. It does not replace the headline.
+            # Neither does a headline that drops the tape's tag: later copies find the row by that tag.
             if better and soft_noise(title) and not soft_noise(row[0]):
+                better = False
+            if better and stress_tag(row[0]) and stress_tag(title) != stress_tag(row[0]):
                 better = False
             if not changed and not better:
                 stats["dup"] += 1
