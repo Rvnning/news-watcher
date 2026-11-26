@@ -791,6 +791,9 @@ def _market_print(title):
 
 def _pitch_or_forecast(title):
     """A product launch, a broker note, or a conference. Not a ruling or a hack."""
+    # A contest about hacking is still a contest. The breach itself is not.
+    if re.search(r"대회|경진", title or "") and re.search(r"개최|겨룬다|내달", title or ""):
+        return True
     if re.search(r"해킹|hack|사고|리콜|사망|파산|제재", title or "", re.I):
         return False
     if re.search(r"출시|파트너\s*선정|업무협약|\bMOU\b|학술대회|보강\s*예정", title or ""):
@@ -834,9 +837,64 @@ def _pitch_or_forecast(title):
         return True
     if re.search(r"수수료", title or "") and re.search(r"거래", title or "") and not re.search(r"해킹|제재|인상", title or ""):
         return True
-    if (re.search(r"\bmoves?\b|\btransferred\b|이동", title or "", re.I)
+    if (re.search(r"\bmoves?\b|\btransferred\b|\bsends?\b|이동", title or "", re.I)
             and re.search(r"wallet|Coinbase Prime|지갑", title or "", re.I)
             and not re.search(r"hack|해킹|stolen|도난|freeze|동결", title or "", re.I)):
+        return True
+    # A pact, a campus, a contest, or a supplier prize is the calendar.
+    # A ban, an approval, a fire, or a halt is the event.
+    if re.search(r"협약|업무협약", title or "") and not re.search(r"파기|위반|제소|무효", title or ""):
+        return True
+    if (re.search(r"데이터\s*센터", title or "")
+            and re.search(r"조성|구축|착공|캠퍼스|매매계약|가동", title or "")
+            and not re.search(r"중단|화재|사고|해킹|승인|금지|공격", title or "")):
+        return True
+    if re.search(r"선정", title or "") and re.search(r"공급사|우수|파트너", title or ""):
+        return True
+    if re.search(r"개최", title or "") and re.search(r"대회|경진|미트업|콘퍼런스", title or ""):
+        return True
+    if re.search(r"인재", title or "") and re.search(r"양성|육성|키운다|투입", title or ""):
+        return True
+    if re.search(r"주요\s*공시", title or ""):
+        return True
+    if re.search(r"편입", title or "") and re.search(r"ETF|etf|비중", title or ""):
+        return True
+    if re.search(r"선봬|적립", title or "") and not re.search(r"해킹|제재|중단", title or ""):
+        return True
+    if re.search(r"처분손실", title or ""):
+        return True
+    if (re.search(r"상장|IPO", title or "", re.I)
+            and re.search(r"나선다|검토|주춤", title or "")
+            and not re.search(r"예비심사|상장예심|승인|통과|청약", title or "")):
+        return True
+    if (re.search(r"지원", title or "") and re.search(r"억원|조원", title or "")
+            and re.search(r"수은|수출입은행|정책금융", title or "")
+            and not re.search(r"중단|위기|긴급", title or "")):
+        return True
+    if re.search(r"개봉", title or "") and re.search(r"영화", title or ""):
+        return True
+    if re.search(r"공동\s*개발", title or ""):
+        return True
+    if re.search(r"출하", title or "") and not re.search(r"중단|사고|지연", title or ""):
+        return True
+    if re.search(r"본격화", title or "") and not re.search(r"수사|압수|기소|해킹|조사", title or ""):
+        return True
+    if re.search(r"구축", title or "") and re.search(r"인프라|CCTV|캠퍼스", title or ""):
+        return True
+    if re.search(r"채비|한자리|쏜다|소비(?:자)?심리", title or ""):
+        return True
+    if re.search(r"CCTV", title or "") and re.search(r"구축|고도화|도입", title or ""):
+        return True
+    if re.search(r"협업", title or "") and re.search(r"대출|카드", title or ""):
+        return True
+    if re.search(r"\bjoins?\b", title or "", re.I) and re.search(r"\bETF\b", title or ""):
+        return True
+    if re.search(r"전망", title or "") and re.search(r"나와|나왔다", title or "") and not re.search(
+            r"성장률|기준금리", title or ""):
+        return True
+    # A meeting to talk about cooperation is the calendar. A signed result is not.
+    if re.search(r"논의", title or "") and re.search(r"협력", title or "") and not re.search(
+            r"합의|타결|통과|제재|결렬", title or ""):
         return True
     return False
 
@@ -875,6 +933,16 @@ def _outlook_question(title):
     if re.search(r"공백|주시|다변화|변수", title) and re.search(r"엔비디아|Nvidia|코스피|비트코인", title):
         return True
     if re.search(r"가격\s*전망|가격\s*분석", title):
+        return True
+    if re.search(r"간다\?", title):
+        return True
+    if re.search(r"여부", title or "") and re.search(r"주목|관심", title or ""):
+        return True
+    if re.search(r"\bto blame\b|\bbreaking point\b|\bretracement\b|\bfibonacci\b|\bcould hit\b", title, re.I):
+        return True
+    if re.search(r"\bprojects?\b", title, re.I) and re.search(r"\bprice\b", title, re.I):
+        return True
+    if re.search(r"\bWeekly\s*:", title):
         return True
     return False
 
@@ -957,7 +1025,7 @@ def soft_noise(title):
         return True
     if re.search(r"시위", title) and not re.search(r"집회", title) and re.search(r"상장|개발중단", title):
         return True
-    if re.search(r"전통시장|시장을?\s*찾은", title) and re.search(r"대통령|장관", title):
+    if re.search(r"전통시장|골목시장|시장\s*방문|시장을?\s*찾은", title) and re.search(r"대통령|장관", title):
         if not re.search(r"데이터\s*센터|해킹|화재|사망", title):
             return True
     if re.search(r"현장\s*점검", title) and not re.search(r"데이터\s*센터|해킹|사고|화재|보안", title):
@@ -972,6 +1040,9 @@ def soft_noise(title):
     if re.search(r"\bundervalued\b|\bovervalued\b|\blive updates\b|\bInstitutional\s*:", title, re.I):
         return True
     if re.search(r"^\[[^\]]*(?:위기|칼럼|전망)[^\]]*\]", title):
+        return True
+    # Cheering a decision already reported is the reaction, not a second event.
+    if re.search(r"환호", title):
         return True
     if _BREAKING_MARK.search(title) or _SOFT_HARD_ACT.search(title):
         return False
@@ -1097,9 +1168,45 @@ def stress_tag(title):
             and not re.search(r"강제집행|압류|해킹|hack|breach", title, re.I)
             and not re.search(r"\brisks?\b|\bbraces?\b|\brebounds?\b|\brecovers?\b|점친|조짐", title, re.I)):
         return "btc-slide"
+    # The same person returning to the same job, in any wording.
+    # A price break that mentions the return stays on the price tape, checked above.
+    # The rally is not the decision, and the Kospi open is not the bitcoin bounce.
+    if re.search(r"젠슨|Jensen|Huang", title) and re.search(r"복귀|reinstat|컴백|귀환", title, re.I):
+        up = re.search(r"급등|폭등|반등|상승|회복|껑충", title)
+        down = re.search(r"급락|폭락|하락|무너|추락|↓", title)
+        if re.search(r"코스피|코스닥|사이드\s*카", title):
+            if up and not down:
+                return "kr-rally"
+            if down:
+                return "mkt-fade"
+        elif re.search(r"비트코인|Bitcoin", title):
+            if up and not down:
+                return "btc-cheer"
+            if down:
+                return "mkt-fade"
+        elif re.search(r"나스닥|닛케이|증시", title):
+            if up and not down:
+                return "mkt-cheer"
+            if down:
+                return "mkt-fade"
+        return "ceo-return"
     # The same site visit, including the photo and the later analysis.
     if re.search(r"울산", title) and re.search(r"데이터\s*센터", title):
         return "site-visit"
+    # One draft: the ownership cap and the bank-led stablecoin are the same bill.
+    if re.search(r"대주주", title) and re.search(r"지분", title) and re.search(r"제한|상한", title):
+        return "crypto-bill"
+    if re.search(r"스테이블코인", title) and re.search(r"은행", title) and re.search(r"과반|지분", title):
+        return "crypto-bill"
+    # The fine for a hack, as distinct from the hack.
+    if re.search(r"해킹", title) and re.search(r"과징금|배상|무과실", title):
+        return "hack-fine"
+    # One print of the household mortgage rate making a high.
+    if re.search(r"가계대출|주담대", title) and re.search(r"금리", title) and re.search(r"돌파|최고|5%", title):
+        return "loan-rate"
+    # The policy rate decision, the dissent, and the same-day restatement.
+    if re.search(r"기준금리", title) and re.search(r"인상|동결|인하", title) and not re.search(r"전망|베팅|주목", title):
+        return "policy-rate"
     if re.search(r"강제집행|압류", title) and re.search(r"가상자산|코인|비트코인|Bitcoin", title, re.I):
         return "crypto-seize"
     if (re.search(r"이민|deport", title, re.I) and re.search(r"트럼프|Trump", title)
