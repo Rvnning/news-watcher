@@ -1196,6 +1196,115 @@ def test_nov20_and_nov21_true_stories_stay():
         con.close()
 
 
+NOV26_TRUE = [
+    ("ai_tech", "[속보] 엔비디아 이사회, 젠슨 황 CEO 복귀 결정"),
+    ("markets", "[속보] 젠슨황 복귀에 코스피 6%대 급등 출발…코스닥도 3%대 상승"),
+    ("politics", "[속보] 북한 항공기 추정 비행체 영공 침범…울릉군 지역에 위급 문자"),
+    ("politics", "[속보] 군 \"북한 항공기 아닌 러 군용기 수대 동해 KADIZ 진입\""),
+    ("markets", "[속보] 코스피, 6.16% 급락해 4697.51 마감…전날 급등분 반납"),
+    ("markets", "[속보] 美, 한국 등 14개 경제주체에 ‘과잉생산 관세’ 예고"),
+    ("markets", "[속보] 美 USTR \"한국, 일본, EU 등 관세 15% 상한 유지\""),
+    ("markets", "[속보] 美 10월 PCE 물가 전년 대비 3.8%↑…예상치 부합"),
+    ("politics", "[속보] 대법원, ‘한덕수 재판 위증 혐의’ 윤석열 전 대통령 무죄 확정"),
+    ("politics", "[속보] 김정은, 핵시설 현지지도…\"전술핵 다영역 활용화 주목해야\""),
+    ("markets", "[속보] 지속되는 한은의 ‘호미질’…기준금리 25bp 인상"),
+    ("markets", "[속보] 황건일·이수형 금통위원, 기준금리 동결 소수의견"),
+    ("crypto", "美 전략적 비트코인(BTC) 비축 법안, 하원 금융서비스위원회 통과"),
+    ("ai_tech", "미 FCC, 스페이스X 우주 AI 데이터센터용 위성 최대 100만기 배치 승인"),
+    ("crypto", "US seeks to recover $1.1B in crypto stolen in North Korea-linked Binance hack"),
+    ("markets", "한국은행 집계 가계대출 금리 5% 돌파…주담대 14년만 최고치"),
+]
+
+
+def test_nov26_calendar_stays_under_scout_and_true_stories_stay():
+    """2026-11-26. A campus, an MOU, or a contest must stay under 8 even when
+    several outlets carry it. The rate decision, the return, and the breaks stay.
+    """
+    assert len(NOV26_TRUE) == 16
+
+    def scout(title, topic, cluster_n=4):
+        got, kw = watcher.classify(title, topic)
+        row = {"title": title, "source": "T", "topic": got, "published": watcher.now().isoformat()}
+        return watcher.score_item(row, 2.0, kw, None, cluster_n)[0]
+
+    for topic, title in NOV26_TRUE:
+        assert not watcher.soft_noise(title), title
+        assert not watcher.noise_title(title), title
+        got, kw = watcher.classify(title, topic)
+        assert watcher.passes_relevance(got, kw, title), (title, got, kw)
+        assert scout(title, topic) >= 8, (title, scout(title, topic))
+
+    calendar = [
+        "KT클라우드, 안산에 110MW 규모 AI 데이터센터 캠퍼스 조성",
+        "인하대 인공지능융합연구센터-시냅스이미징, 반도체 장비 AI 기술개발 협약",
+        "SK에코플랜트, '2026 콘테크 미트업 데이' 개최… AI 데이터센터 혁신기술 발굴",
+        "삼성전자서비스, 기술경진·안전혁신대회 개최…AI 시대 서비스 역량 강화",
+        "경북도, AI·반도체·로봇 등 인재 4만2000명 양성…첨단산업 인재 생태계 조성에 2360억원 투입",
+        "[코스피·코스닥 전 거래일(23일) 주요공시]",
+        "이재명 대통령, 서울 은평구 대림골목시장 방문",
+        "아리바이오, '코스피 직상장' 나선다…AR1001 글로벌 상업화 도전",
+        "국산 AI로 사이버보안 실력 겨룬다…내달 'AI 해킹방어 대회'",
+        "카카오뱅크, 글로벌 프론티어 AI 기업 미스트랄과 ‘금융 특화 LLM’ 공동 개발",
+        "BC카드, 스테이블코인 결제 기반 확보…상용화 채비",
+        "중부발전, 용인 반도체클러스터 에너지 인프라 구축 본격화",
+        "증시 급락에…소비자심리지수 7개월 만에 최저",
+        "보령 웅천 AI 데이터센터, 사업부지 매매계약 체결",
+    ]
+    for title in calendar:
+        assert watcher.soft_noise(title), title
+        assert scout(title, "ai_tech", cluster_n=6) <= 7.4, (title, scout(title, "ai_tech", 6))
+
+    assert not watcher.soft_noise("엔비디아 조사 본격화")
+    assert not watcher.soft_noise("이재용, 日서 AI 반도체 승부처 점검…첨단 패키징 협력 강화")
+    assert not watcher.soft_noise("[속보] 李대통령, 울산 AI데이터센터 찾아")
+
+    groups = [
+        ("crypto", "디지털자산기본법, 거래소 지분 20%·스테이블코인 은행 '과반 지분'", [
+            "업비트·빗썸 대주주 지분 20% 제한 추진",
+        ]),
+        ("crypto", "가상자산거래소 해킹땐 최대 1000억대 과징금…무과실 배상도", [
+            "거래소 해킹 배상 책임 무과실로 확대",
+        ]),
+        ("markets", "한국은행 집계 가계대출 금리 5% 돌파…주담대 14년만 최고치", [
+            "주담대 금리 5% 넘어 14년 만에 최고",
+        ]),
+        ("markets", "[속보] 지속되는 한은의 ‘호미질’…기준금리 25bp 인상", [
+            "[속보] 황건일·이수형 금통위원, 기준금리 동결 소수의견",
+            "국고채 금리, 기준금리 인상에 일제히 상승",
+        ]),
+        ("ai_tech", "[속보] 엔비디아 이사회, 젠슨 황 CEO 복귀 결정", [
+            "Nvidia reinstates Jensen Huang as CEO",
+        ]),
+        ("markets", "[속보] 젠슨황 복귀에 코스피 6%대 급등 출발…코스닥도 3%대 상승", [
+            "[속보] 젠슨 황 컴백에 삼전닉스 나란히 급등…코스피 상승에 매수 사이드카도",
+        ]),
+        ("crypto", "[속보] 비트코인 6만3000달러 회복, 젠슨 황 복귀 소식도 전해져", []),
+    ]
+    tmp = tempfile.mkdtemp()
+    watcher.DB_PATH = os.path.join(tmp, "watcher.db")
+    watcher.CAND = os.path.join(tmp, "c.jsonl")
+    watcher.BREAK_LOG = os.path.join(tmp, "b.log")
+    watcher.RUN_LOG = os.path.join(tmp, "r.log")
+    con = watcher.db()
+    recent, stats = [], {"new": 0, "merged": 0, "dup": 0, "too_old": 0, "breaking": 0, "noise": 0, "offtopic": 0}
+    n = 0
+    for topic, lead, rest in groups:
+        watcher.process(con, src(topic), [item(lead, url=f"https://ex.example/n26-{n}", publisher=f"L{n}")], recent, stats)
+        n += 1
+        for title in rest:
+            watcher.process(con, src(topic), [item(title, url=f"https://ex.example/n26-{n}", publisher=f"R{n}")], recent, stats)
+            n += 1
+    titles = [t for (t,) in con.execute("SELECT title FROM items")]
+    assert sum("지분" in t or "스테이블코인" in t for t in titles) == 1, titles
+    assert sum("과징금" in t or "배상" in t for t in titles) == 1, titles
+    assert sum("가계대출" in t or "주담대" in t for t in titles) == 1, titles
+    assert sum("기준금리" in t for t in titles) == 1, titles
+    assert sum("이사회" in t or "reinstates" in t for t in titles) == 1, titles
+    assert sum("코스피" in t and "급등" in t for t in titles) == 1, titles
+    assert sum("6만" in t for t in titles) == 1, titles
+    con.close()
+
+
 if __name__ == "__main__":
     test_hangul_false_friends()
     test_relevance_gates()
@@ -1215,4 +1324,5 @@ if __name__ == "__main__":
     test_nov9_true_stories_stay_and_same_act_is_one_line()
     test_nov13_and_nov15_true_stories_stay()
     test_nov20_and_nov21_true_stories_stay()
+    test_nov26_calendar_stays_under_scout_and_true_stories_stay()
     print("ok")
